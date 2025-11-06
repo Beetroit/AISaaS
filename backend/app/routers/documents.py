@@ -3,22 +3,21 @@ from typing import List
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
-from backend.app.crud.knowledge_base_document_crud import KnowledgeBaseDocumentCRUD
 from backend.app.dependencies import (
-    get_knowledge_base_document_crud,
     get_document_processor_service,
+    get_knowledge_base_document_crud,
 )
 from backend.app.models.user import User
 from backend.app.schemas.knowledge_base_document import KnowledgeBaseDocumentCreate
 from backend.app.security import get_current_user
 from backend.app.services.document_processor_service import DocumentProcessorService
+from backend.app.crud.knowledge_base_document_crud import KnowledgeBaseDocumentCRUD
 
 router = APIRouter()
 
 
 @router.post("/upload-document/")
 async def upload_document(
-    files: List[UploadFile] = File(...),
     current_user: User = Depends(get_current_user),
     knowledge_base_document_crud: KnowledgeBaseDocumentCRUD = Depends(
         get_knowledge_base_document_crud
@@ -26,6 +25,7 @@ async def upload_document(
     document_processor_service: DocumentProcessorService = Depends(
         get_document_processor_service
     ),
+    files: List[UploadFile] = File(...),
 ):
     uploaded_filenames = []
     for file in files:

@@ -12,6 +12,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.config import settings
 from backend.app.crud.knowledge_base_document_crud import KnowledgeBaseDocumentCRUD
 from backend.app.crud.user_crud import UserCRUD
+from backend.app.crud.agent_crud import AgentCRUD
+from backend.app.crud.chat_session_crud import ChatSessionCRUD
+from backend.app.crud.lead_crud import LeadCRUD
 from backend.app.database import AsyncSessionLocal
 from backend.app.models.user import User
 from backend.app.schemas.token import TokenData
@@ -20,6 +23,8 @@ from backend.app.services.credential_service import CredentialService
 from backend.app.services.document_processor_service import DocumentProcessorService
 from backend.app.services.openai_service import OpenAIService
 from backend.app.services.retrieval_service import RetrievalService
+from backend.app.services.agent_workflow_service import AgentWorkflowService
+from backend.app.services.google_calendar_service import GoogleCalendarService
 
 # Initialize ChromaDB client
 chroma_client = chromadb.HttpClient(
@@ -52,6 +57,18 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
 
 def get_user_crud(session: AsyncSession = Depends(get_db)) -> UserCRUD:
     return UserCRUD(session)
+
+
+def get_agent_crud(session: AsyncSession = Depends(get_db)) -> AgentCRUD:
+    return AgentCRUD(session)
+
+
+def get_chat_session_crud(session: AsyncSession = Depends(get_db)) -> ChatSessionCRUD:
+    return ChatSessionCRUD(session)
+
+
+def get_lead_crud(session: AsyncSession = Depends(get_db)) -> LeadCRUD:
+    return LeadCRUD(session)
 
 
 def get_knowledge_base_document_crud(
@@ -88,8 +105,35 @@ def get_credential_service(
     return CredentialService(session)
 
 
+def get_google_calendar_service(
+    db: AsyncSession = Depends(get_db),
+    credential_service: CredentialService = Depends(get_credential_service),
+) -> GoogleCalendarService:
+    return GoogleCalendarService(db=db, credential_service=credential_service)
+
+
+def get_agent_workflow_service(
+    ai_service: AIService = Depends(get_openai_service),
+    google_calendar_service: GoogleCalendarService = Depends(
+        get_google_calendar_service
+    ),
+    retrieval_service: RetrievalService = Depends(get_retrieval_service),
+    lead_crud: LeadCRUD = Depends(get_lead_crud),
+    chat_session_crud: ChatSessionCRUD = Depends(get_chat_session_crud),
+) -> AgentWorkflowService:
+    return AgentWorkflowService(
+        ai_service=ai_service,
+        google_calendar_service=google_calendar_service,
+        retrieval_service=retrieval_service,
+        lead_crud=lead_crud,
+        chat_session_crud=chat_session_crud,
+    )
+
+
 async def get_current_user(
-    db: Annotated[AsyncSession, Depends(get_db)], token: str = Depends(oauth2_scheme)
+    db: Annotated[AsyncSession, Depends(get_db)],
+    token: str = Depends(oauth2_scheme),
+    user_crud: UserCRUD = Depends(get_user_crud),
 ) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -106,7 +150,6 @@ async def get_current_user(
         token_data = TokenData(email=email)
     except JWTError:
         raise credentials_exception
-    user_crud = UserCRUD(db)
     if token_data.email is None:
         raise credentials_exception  # Should not happen due to earlier check, but for type safety
     user = await user_crud.get_user_by_email(token_data.email)
@@ -117,6 +160,15 @@ async def get_current_user(
 
 # Type annotations for dependencies
 UserCRUDDep = Annotated[UserCRUD, Depends(get_user_crud)]
+AgentCRUDDep = Annotated[AgentCRUD, Depends(get_agent_crud)]
+ChatSessionCRUDDep = Annotated[ChatSessionCRUD, Depends(get_chat_session_crud)]
+LeadCRUDDep = Annotated[LeadCRUD, Depends(get_lead_crud)]
+KnowledgeBaseDocumentCRUDDep = Annotated[
+    KnowledgeBaseDocumentCRUD, Depends(get_knowledge_base_document_crud)
+]
 CredentialServiceDep = Annotated[CredentialService, Depends(get_credential_service)]
 CurrentUser = Annotated[User, Depends(get_current_user)]
 DBSession = Annotated[AsyncSession, Depends(get_db)]
+AgentWorkflowServiceDep = Annotated[
+    AgentWorkflowService, Depends(get_agent_workflow_service)
+]

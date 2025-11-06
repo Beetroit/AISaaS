@@ -7,8 +7,17 @@ from fastapi import APIRouter, HTTPException, Request
 from starlette.responses import Response
 from twilio.request_validator import RequestValidator
 
-from backend.app.dependencies import CredentialServiceDep
+from backend.app.dependencies import (
+    CredentialServiceDep,
+    AgentWorkflowServiceDep,
+    ChatSessionCRUDDep,
+    LeadCRUDDep,
+)
 from backend.app.schemas.lead import LeadCreate
+from backend.app.schemas.chat_session import ChatSessionCreate
+from backend.app.models.agent import Agent
+from sqlalchemy import select
+
 
 router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
 
@@ -18,6 +27,9 @@ async def twilio_whatsapp_webhook(
     client_id: str,
     request: Request,
     credential_service: CredentialServiceDep,
+    agent_workflow_service: AgentWorkflowServiceDep,
+    chat_session_crud: ChatSessionCRUDDep,
+    lead_crud: LeadCRUDDep,
 ):
     twilio_auth_token = await credential_service.get_webhook_secret(
         client_id, "twilio_webhook_secret"
@@ -32,25 +44,63 @@ async def twilio_whatsapp_webhook(
     validator = RequestValidator(twilio_auth_token)
 
     form_params = await request.form()
-    # Twilio sends form-encoded data, so we need to convert it to a dict
     form_params_dict = {key: value for key, value in form_params.items()}
 
-    # Get the full URL from the request
-    # FastAPI's request.url gives the full URL including scheme and host
     request_url = str(request.url)
 
-    # Validate the request
     if not validator.validate(
         request_url, form_params_dict, request.headers.get("X-Twilio-Signature", "")
     ):
         raise HTTPException(status_code=403, detail="Invalid Twilio signature.")
 
-    # TODO: Process incoming WhatsApp message
-    # TODO: Route message to the correct agent/user
-    # TODO: Send response back to Twilio
+    incoming_message = form_params_dict.get("Body")
+    from_number = form_params_dict.get("From")
 
-    # For now, just acknowledge receipt
-    return Response(content="<Response></Response>", media_type="application/xml")
+    if not incoming_message or not from_number:
+        raise HTTPException(status_code=400, detail="Missing message body or sender.")
+
+    # Retrieve the agent
+    agent_stmt = select(Agent).where(Agent.id == client_id)
+    agent = (
+        await lead_crud.session.execute(agent_stmt)
+    ).scalar_one_or_none()  # Using lead_crud.session for agent retrieval
+
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found.")
+
+    # Retrieve or create chat session
+    chat_session = await chat_session_crud.get_chat_session_by_external_id(
+        agent.id, from_number
+    )
+
+    if not chat_session:
+        chat_session_create = ChatSessionCreate(
+            user_id=agent.user_id, agent_id=agent.id, external_id=from_number
+        )
+        chat_session = await chat_session_crud.create_chat_session(chat_session_create)
+
+    # Add user message to chat history
+    await chat_session_crud.add_message_to_chat_history(
+        chat_session.id, "user", incoming_message
+    )
+
+    # Execute agent workflow
+    agent_response = await agent_workflow_service.execute_workflow(
+        agent=agent,
+        chat_session=chat_session,
+        user_message=incoming_message,
+    )
+
+    # Add agent response to chat history
+    await chat_session_crud.add_message_to_chat_history(
+        chat_session.id, "agent", agent_response
+    )
+
+    # For now, just acknowledge receipt with agent's response
+    # In a real scenario, you'd use Twilio's messaging API to send this response
+    # For this example, we'll return it in a TwiML-like format
+    twiml_response = f"<Response><Message>{agent_response}</Message></Response>"
+    return Response(content=twiml_response, media_type="application/xml")
 
 
 @router.post("/lead/{client_id}")
@@ -58,6 +108,7 @@ async def lead_intake_webhook(
     client_id: str,
     request: Request,
     credential_service: CredentialServiceDep,
+    lead_crud: LeadCRUDDep,
 ):
     lead_webhook_secret = await credential_service.get_webhook_secret(
         client_id, "lead_webhook_secret"
@@ -109,7 +160,26 @@ async def lead_intake_webhook(
 
     # Create Lead object
     try:
-        lead_create = LeadCreate(**mapped_lead_data)  # noqa: F841
+        # Assuming user_id, agent_id, chat_session_id are available or can be derived
+        # For now, using placeholders or deriving from client_id if possible
+        # This part needs careful consideration based on how leads are associated
+        # with users/agents/chat_sessions from external webhooks.
+        # For demonstration, let's assume we can get agent_id from client_id and user_id from agent.
+        agent_stmt = select(Agent).where(Agent.id == client_id)
+        agent = (await lead_crud.session.execute(agent_stmt)).scalar_one_or_none()
+        if not agent:
+            raise HTTPException(
+                status_code=404, detail="Agent not found for client_id."
+            )
+
+        lead_create = LeadCreate(**mapped_lead_data)
+        new_lead = await lead_crud.create_lead(
+            lead=lead_create,
+            user_id=agent.user_id,
+            agent_id=agent.id,
+            chat_session_id="",  # This might need to be null or derived differently for webhooks
+        )
+
     except Exception as e:
         raise HTTPException(
             status_code=400, detail=f"Invalid lead data after mapping: {e}"
@@ -120,6 +190,7 @@ async def lead_intake_webhook(
     return {
         "message": f"Lead webhook received and mapped for client {client_id}",
         "lead_data": mapped_lead_data,
+        "new_lead_id": new_lead.id if new_lead else None,
     }
 
 

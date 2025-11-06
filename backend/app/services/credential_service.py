@@ -24,8 +24,8 @@ class CredentialService:
             credentials_data=encrypted_data,
         )
         self.db.add(credential)
-        await self.db.commit()
-        await self.db.refresh(credential)
+        await self.db.flush()
+
         return credential
 
     async def get_credential(
@@ -53,8 +53,8 @@ class CredentialService:
         if credential:
             encrypted_data = encryption_helper.encrypt_data(new_data)
             credential.credentials_data = encrypted_data
-            await self.db.commit()
-            await self.db.refresh(credential)
+            await self.db.flush()
+
             return credential
         return None
 
@@ -67,7 +67,7 @@ class CredentialService:
         credential = result.scalars().first()
         if credential:
             await self.db.delete(credential)
-            await self.db.commit()
+            await self.db.flush()
             return True
         return False
 

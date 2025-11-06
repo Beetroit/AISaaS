@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any, Dict
 
 from sqlalchemy import ForeignKey, String
+from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from ulid import ULID
 
@@ -29,6 +30,10 @@ class Agent(Base):
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    persona: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    initial_prompts: Mapped[str | None] = mapped_column(String(2000), nullable=True)
+    workflow_schema: Mapped[Dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    message_credits: Mapped[int] = mapped_column(default=0, nullable=False)
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id"))
 
     owner: Mapped[User] = relationship("User", back_populates="agents")
@@ -51,6 +56,10 @@ class Agent(Base):
             "id": self.id,
             "name": self.name,
             "description": self.description,
+            "persona": self.persona,
+            "initial_prompts": self.initial_prompts,
+            "workflow_schema": self.workflow_schema,
+            "message_credits": self.message_credits,
             "user_id": self.user_id,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,

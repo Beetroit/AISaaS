@@ -3,6 +3,7 @@ from .knowledge_base_document import (
     KnowledgeBaseDocumentCreate,
     KnowledgeBaseDocumentResponse,
 )
+from .retrieval import RelevantChunk
 
 __all__ = [
     "UserCreate",
@@ -11,4 +12,5 @@ __all__ = [
     "UserResponse",
     "KnowledgeBaseDocumentCreate",
     "KnowledgeBaseDocumentResponse",
+    "RelevantChunk",
 ]
