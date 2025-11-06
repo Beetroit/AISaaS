@@ -6,7 +6,7 @@ from backend.app.models.user import User  # Import specific model for type hinti
 from backend.app.schemas import user as schemas_user
 from backend.app.security import get_current_user
 
-from .routers import auth, documents
+from .routers import auth, documents, webhooks, stripe_api
 
 
 @asynccontextmanager
@@ -19,6 +19,8 @@ app = FastAPI(lifespan=lifespan)
 
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(documents.router, prefix="/documents", tags=["documents"])
+app.include_router(webhooks.router)
+app.include_router(stripe_api.router)
 
 
 @app.get("/")

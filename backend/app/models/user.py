@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from backend.app.models.chat_session import ChatSession
     from backend.app.models.knowledge_base_document import KnowledgeBaseDocument
     from backend.app.models.lead import Lead
+    from backend.app.models.credential import Credential
 
 
 class User(Base):
@@ -44,6 +45,9 @@ class User(Base):
     leads: Mapped[list[Lead]] = relationship("Lead", back_populates="user")
     appointments: Mapped[list[Appointment]] = relationship(
         "Appointment", back_populates="user"
+    )
+    credentials: Mapped[list["Credential"]] = relationship(
+        "Credential", back_populates="user"
     )
 
     def __repr__(self) -> str:

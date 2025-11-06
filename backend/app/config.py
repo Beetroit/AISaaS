@@ -26,6 +26,11 @@ class Settings(BaseSettings):
     twilio_sid: str
     twilio_phone_number: str
     twilio_auth_token: str
+    encryption_key: str
+    google_client_id: str
+    google_client_secret: str
+    google_redirect_uri: str
+    stripe_customer_portal_return_url: str
 
 
 settings = Settings.model_validate({})

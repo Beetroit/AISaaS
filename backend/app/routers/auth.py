@@ -1,41 +1,89 @@
 from datetime import timedelta
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from google_auth_oauthlib.flow import Flow
 
-from backend.app.crud.user_crud import UserCRUD
-from backend.app.schemas import user as schemas_user
-from backend.app.dependencies import get_user_crud
-from backend.app.security import verify_password, create_access_token
 from backend.app.config import settings
+from backend.app.dependencies import CurrentUser, DBSession, UserCRUDDep
+from backend.app.schemas import user as user_schema
+from backend.app.schemas.token import Token
+from backend.app.security import create_access_token, get_password_hash
+from backend.app.services.credential_service import CredentialService
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 
 router = APIRouter()
 
-
-@router.post("/register", response_model=schemas_user.UserResponse)
-async def register_user(
-    user: schemas_user.UserCreate, user_crud: UserCRUD = Depends(get_user_crud)
-):
-    db_user = await user_crud.get_user_by_email(email=user.email)
-    if db_user:
-        raise HTTPException(status_code=400, detail="Email already registered")
-    return await user_crud.create_user(user=user)
+# Google OAuth2 Scopes
+GOOGLE_SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
 
-@router.post("/token", response_model=schemas_user.Token)
+@router.post("/token", response_model=Token)
 async def login_for_access_token(
-    form_data: OAuth2PasswordRequestForm = Depends(),
-    user_crud: UserCRUD = Depends(get_user_crud),
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    user_crud: UserCRUDDep,
 ):
-    user = await user_crud.get_user_by_email(email=form_data.username)
-    if not user or not verify_password(form_data.password, user.hashed_password):
+    user = await user_crud.authenticate_user(form_data.username, form_data.password)
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
+            detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
     access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
     access_token = create_access_token(
-        data={"email": user.email}, expires_delta=access_token_expires
+        data={"sub": user.email}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+@router.post("/register", response_model=user_schema.UserResponse)
+async def register_user(
+    user_create: user_schema.UserCreate,
+    user_crud: UserCRUDDep,
+):
+    db_user = await user_crud.get_user_by_email(user_create.email)
+    if db_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    hashed_password = get_password_hash(user_create.password)
+    user = await user_crud.create_user(user_create.email, hashed_password)
+    return user
+
+
+@router.get("/google/authorize")
+async def google_authorize(current_user: CurrentUser):
+    flow = Flow.from_client_secrets_file(
+        "client_secret.json",  # This file needs to be created/managed securely
+        scopes=GOOGLE_SCOPES,
+        redirect_uri=settings.google_redirect_uri,
+    )
+    authorization_url, state = flow.authorization_url(
+        access_type="offline", include_granted_scopes="true"
+    )
+    # Store state in session or database associated with current_user for verification
+    # For now, we'll just redirect
+    return Response(headers={"Location": authorization_url}, status_code=302)
+
+
+@router.get("/google/callback")
+async def google_callback(
+    code: str,
+    state: str,
+    db: DBSession,
+    current_user: CurrentUser,
+):
+    # TODO: Verify state parameter to prevent CSRF attacks
+    flow = Flow.from_client_secrets_file(
+        "client_secret.json",  # This file needs to be created/managed securely
+        scopes=GOOGLE_SCOPES,
+        redirect_uri=settings.google_redirect_uri,
+    )
+    flow.fetch_token(code=code)
+
+    credentials = flow.credentials
+    credential_service = CredentialService(db)
+    await credential_service.save_google_tokens(current_user.id, credentials.to_json())
+
+    return {"message": "Google Calendar connected successfully!"}
