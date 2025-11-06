@@ -1,0 +1,85 @@
+/* Configuración de la fuente Inter (limpia y moderna) */
+:root {
+    --color-primary: #1d4ed8;
+    /* Azul principal */
+    --color-dark: #000000;
+    /* Negro puro para texto */
+    --color-light-bg: #f5f7fa;
+    /* Fondo muy claro y fresco */
+}
+
+body {
+    font-family: "Inter", sans-serif;
+    color: var(--color-dark);
+    background-color: var(--color-light-bg);
+}
+
+/* Estilos de Botón Primario para el efecto dinámico y premium */
+.btn-primary {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 8px 25px -5px rgba(29, 78, 216, 0.4);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 15px 35px -5px rgba(29, 78, 216, 0.6);
+    background-color: #1e40af;
+    /* Azul ligeramente más oscuro al pasar el cursor */
+}
+
+/* Estilo de Tarjetas con sombra suave y elevación */
+.card {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.08);
+}
+
+.card:hover {
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+    transform: translateY(-5px);
+}
+
+/* Estilo del Hero Section con titular grande y gradiente */
+.hero {
+    background: radial-gradient(
+        circle at 50% 0%,
+        rgba(29, 78, 216, 0.05) 0%,
+        rgba(255, 255, 255, 0) 30%
+    );
+    padding-bottom: 8rem;
+}
+
+.hero h1 {
+    font-size: clamp(3rem, 6vw, 5.5rem);
+    /* Título aún más grande y responsivo */
+    line-height: 1.05;
+    font-weight: 800;
+}
+
+/* Estilo para el plan destacado */
+.plan-destacado {
+    background: linear-gradient(145deg, #1e40af, #1d4ed8);
+    transform: scale(1.05);
+    box-shadow: 0 20px 40px rgba(29, 78, 216, 0.5);
+}
+
+.plan-destacado:hover {
+    transform: scale(1.08);
+    box-shadow: 0 25px 50px rgba(29, 78, 216, 0.7);
+}
+
+/* Ajuste para el color de fondo de secciones */
+.bg-gray-50 {
+    background-color: var(--color-light-bg);
+}
+
+.bg-white {
+    background-color: #ffffff;
+}
+
+/* Estilo para los iconos de beneficios con morado sutil (tomado de la referencia) */
+.stat-icon {
+    background-color: #ede9fe;
+    /* Morado muy claro */
+    color: #7c3aed;
+    /* Morado fuerte */
+}
