@@ -6,10 +6,11 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from backend.app.dependencies import (
     get_document_processor_service,
     get_knowledge_base_document_crud,
+    get_current_user,
 )
 from backend.app.models.user import User
 from backend.app.schemas.knowledge_base_document import KnowledgeBaseDocumentCreate
-from backend.app.security import get_current_user
+
 from backend.app.services.document_processor_service import DocumentProcessorService
 from backend.app.crud.knowledge_base_document_crud import KnowledgeBaseDocumentCRUD
 

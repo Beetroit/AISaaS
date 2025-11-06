@@ -11,6 +11,7 @@ class ChatSessionBase(BaseModel):
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
     status: Optional[str] = "active"
+    current_workflow_step: Optional[str] = None
     chat_history: List[Dict[str, Any]] = []
 
 

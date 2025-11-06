@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgentSync Pro Dashboard</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <h1>Welcome to AgentSync Pro!</h1>
+    <div id="app">
+        <div id="auth-container">
+            <h2>Login</h2>
+            <form id="login-form">
+                <input type="email" id="login-email" placeholder="Email" required>
+                <input type="password" id="login-password" placeholder="Password" required>
+                <button type="submit">Login</button>
+            </form>
+
+            <h2>Register</h2>
+            <form id="register-form">
+                <input type="email" id="register-email" placeholder="Email" required>
+                <input type="password" id="register-password" placeholder="Password" required>
+                <button type="submit">Register</button>
+            </form>
+        </div>
+        <div id="dashboard-container" style="display:none;">
+            <h2>Dashboard</h2>
+            <p>Welcome, <span id="user-email"></span>!</p>
+            <button id="logout-button">Logout</button>
+
+            <h3>Document Management</h3>
+            <input type="file" id="document-upload-input" multiple>
+            <button id="document-upload-button">Upload Documents</button>
+            <ul id="document-list"></ul>
+
+            <h3>Integrations</h3>
+            <button id="connect-google-calendar-button">Connect Google Calendar</button>
+
+            <h4>Twilio Configuration</h4>
+            <form id="twilio-config-form">
+                <input type="text" id="twilio-sid" placeholder="Twilio Account SID" required>
+                <input type="text" id="twilio-auth-token" placeholder="Twilio Auth Token" required>
+                <input type="text" id="twilio-phone-number" placeholder="Twilio Phone Number (e.g., +1234567890)" required>
+                <button type="submit">Save Twilio Credentials</button>
+            </form>
+
+            <h4>Lead Intake Webhook</h4>
+            <p>Your personal lead intake webhook URL:</p>
+            <p><code id="lead-webhook-url">Loading...</code></p>
+            <button id="generate-lead-webhook-button">Generate New Webhook URL</button>
+
+            <h3>Reports</h3>
+            <h4>Scheduled Appointments</h4>
+            <ul id="appointments-list"></ul>
+
+            <h4>Lead Qualification History</h4>
+            <ul id="lead-history-list"></ul>
+
+            <h4>Message Usage Reports</h4>
+            <p>Total Messages Sent: <span id="total-messages-sent">0</span></p>
+            <p>Remaining Credits: <span id="remaining-credits">0</span></p>
+
+            <h3>Billing & Subscriptions</h3>
+            <p>Current Subscription: <span id="current-subscription">None</span></p>
+            <button id="manage-subscription-button">Manage Subscription</button>
+
+            <h4>Purchase Message Packages</h4>
+            <ul id="message-packages-list"></ul>
+
+        </div>
+    </div>
+    <script src="/static/js/main.js"></script>
+</body>
+</html>

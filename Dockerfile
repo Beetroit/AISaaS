@@ -20,7 +20,7 @@ RUN pip install uv
 
 # Copy dependency files
 COPY pyproject.toml uv.lock ./
-
+COPY frontend/ /app/frontend/
 # Install Python dependencies into the system environment
 RUN uv pip install --system -r pyproject.toml
 

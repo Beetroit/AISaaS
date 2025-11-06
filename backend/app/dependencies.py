@@ -2,29 +2,28 @@ from contextlib import asynccontextmanager
 from typing import Annotated, Any, AsyncGenerator
 
 import chromadb
-import jose.jwt
 from chromadb.api import ClientAPI
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError
+from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.config import settings
-from backend.app.crud.knowledge_base_document_crud import KnowledgeBaseDocumentCRUD
-from backend.app.crud.user_crud import UserCRUD
 from backend.app.crud.agent_crud import AgentCRUD
-from backend.app.crud.chat_session_crud import ChatSessionCRUD
+from backend.app.crud.appointment_crud import AppointmentCRUD
+from backend.app.crud.chat_session_crud import ChatSessionCRUD, select
+from backend.app.crud.knowledge_base_document_crud import KnowledgeBaseDocumentCRUD
 from backend.app.crud.lead_crud import LeadCRUD
+from backend.app.crud.user_crud import UserCRUD
 from backend.app.database import AsyncSessionLocal
 from backend.app.models.user import User
-from backend.app.schemas.token import TokenData
+from backend.app.services.agent_workflow_service import AgentWorkflowService
 from backend.app.services.ai_service import AIService
 from backend.app.services.credential_service import CredentialService
 from backend.app.services.document_processor_service import DocumentProcessorService
+from backend.app.services.google_calendar_service import GoogleCalendarService
 from backend.app.services.openai_service import OpenAIService
 from backend.app.services.retrieval_service import RetrievalService
-from backend.app.services.agent_workflow_service import AgentWorkflowService
-from backend.app.services.google_calendar_service import GoogleCalendarService
 
 # Initialize ChromaDB client
 chroma_client = chromadb.HttpClient(
@@ -65,6 +64,10 @@ def get_agent_crud(session: AsyncSession = Depends(get_db)) -> AgentCRUD:
 
 def get_chat_session_crud(session: AsyncSession = Depends(get_db)) -> ChatSessionCRUD:
     return ChatSessionCRUD(session)
+
+
+def get_appointment_crud(session: AsyncSession = Depends(get_db)) -> AppointmentCRUD:
+    return AppointmentCRUD(session)
 
 
 def get_lead_crud(session: AsyncSession = Depends(get_db)) -> LeadCRUD:
@@ -131,28 +134,22 @@ def get_agent_workflow_service(
 
 
 async def get_current_user(
-    db: Annotated[AsyncSession, Depends(get_db)],
-    token: str = Depends(oauth2_scheme),
-    user_crud: UserCRUD = Depends(get_user_crud),
-) -> User:
+    token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)
+):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jose.jwt.decode(
+        payload = jwt.decode(
             token, settings.secret_key, algorithms=[settings.algorithm]
         )
-        email: str = payload.get("sub")
-        if email is None:
-            raise credentials_exception
-        token_data = TokenData(email=email)
+        user_id: str = payload.get("sub")
     except JWTError:
         raise credentials_exception
-    if token_data.email is None:
-        raise credentials_exception  # Should not happen due to earlier check, but for type safety
-    user = await user_crud.get_user_by_email(token_data.email)
+    user = await db.execute(select(User).filter(User.id == user_id))
+    user = user.scalars().first()
     if user is None:
         raise credentials_exception
     return user
@@ -162,6 +159,7 @@ async def get_current_user(
 UserCRUDDep = Annotated[UserCRUD, Depends(get_user_crud)]
 AgentCRUDDep = Annotated[AgentCRUD, Depends(get_agent_crud)]
 ChatSessionCRUDDep = Annotated[ChatSessionCRUD, Depends(get_chat_session_crud)]
+AppointmentCRUDDep = Annotated[AppointmentCRUD, Depends(get_appointment_crud)]
 LeadCRUDDep = Annotated[LeadCRUD, Depends(get_lead_crud)]
 KnowledgeBaseDocumentCRUDDep = Annotated[
     KnowledgeBaseDocumentCRUD, Depends(get_knowledge_base_document_crud)

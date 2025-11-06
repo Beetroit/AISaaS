@@ -86,3 +86,85 @@ async def get_customer_portal_session(
         return {"url": session.url}
     except stripe.StripeError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/subscription-status")
+async def get_subscription_status(
+    current_user: CurrentUser,
+    credential_service: CredentialServiceDep,
+):
+    stripe_customer_id = await credential_service.get_stripe_customer_id(
+        current_user.id
+    )
+    if not stripe_customer_id:
+        return {"status": "no_subscription"}
+
+    try:
+        subscriptions = stripe.Subscription.list(
+            customer=stripe_customer_id, status="active"
+        )
+        if subscriptions.data:
+            return {"status": "active", "subscription": subscriptions.data[0]}
+        else:
+            return {"status": "no_subscription"}
+    except stripe.StripeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/message-packages")
+async def get_message_packages():
+    try:
+        products = stripe.Product.list(active=True)
+        message_packages = []
+        for product in products.data:
+            prices = stripe.Price.list(product=product.id, active=True)
+            for price in prices.data:
+                if (
+                    price.type == "one_time"
+                ):  # Assuming message packages are one-time purchases
+                    message_packages.append(
+                        {
+                            "id": product.id,
+                            "name": product.name,
+                            "description": product.description,
+                            "price_id": price.id,
+                            "unit_amount": price.unit_amount,
+                            "currency": price.currency,
+                        }
+                    )
+        return message_packages
+    except stripe.StripeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/create-checkout-session")
+async def create_checkout_session(
+    price_id: str,
+    current_user: CurrentUser,
+    credential_service: CredentialServiceDep,
+):
+    stripe_customer_id = await credential_service.get_stripe_customer_id(
+        current_user.id
+    )
+    if not stripe_customer_id:
+        # Optionally create a customer if one doesn't exist
+        raise HTTPException(
+            status_code=400, detail="Stripe customer not found for this user."
+        )
+
+    try:
+        checkout_session = stripe.checkout.Session.create(
+            customer=stripe_customer_id,
+            line_items=[
+                {
+                    "price": price_id,
+                    "quantity": 1,
+                }
+            ],
+            mode="payment",
+            success_url=settings.stripe_customer_portal_return_url + "?success=true",
+            cancel_url=settings.stripe_customer_portal_return_url + "?canceled=true",
+        )
+        return {"url": checkout_session.url}
+    except stripe.StripeError as e:
+        raise HTTPException(status_code=400, detail=str(e))

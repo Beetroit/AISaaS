@@ -40,6 +40,9 @@ class ChatSession(Base):
     status: Mapped[str] = mapped_column(
         String(50), default="active"
     )  # e.g., active, completed, abandoned
+    current_workflow_step: Mapped[str | None] = mapped_column(
+        String(255), nullable=True
+    )
     chat_history: Mapped[List[Dict[str, Any]]] = mapped_column(
         JSON, default=list, nullable=False
     )

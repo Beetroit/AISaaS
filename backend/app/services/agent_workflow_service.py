@@ -38,18 +38,26 @@ class AgentWorkflowService:
             return "Error: No lead associated with this chat session."
 
         response = ""
-        if agent.workflow_schema:
-            for step_key, step_data in agent.workflow_schema.items():
-                # Evaluate each step in the workflow
-                step_response = await self._evaluate_step(
-                    agent=agent,
-                    chat_session=chat_session,
-                    lead=lead,
-                    step_data=step_data,
-                    user_message=user_message,
-                )
-                if step_response:
-                    response += step_response + "\n"
+        current_step_key = (
+            chat_session.current_workflow_step or "1"
+        )  # Start at step 1 or current
+
+        if agent.workflow_schema and current_step_key in agent.workflow_schema:
+            step_data = agent.workflow_schema[current_step_key]
+            step_response, next_step_key = await self._process_workflow_step(
+                agent=agent,
+                chat_session=chat_session,
+                lead=lead,
+                step_key=current_step_key,
+                step_data=step_data,
+                user_message=user_message,
+            )
+            if step_response:
+                response += step_response
+
+            # Update the chat session's current workflow step
+            chat_session.current_workflow_step = next_step_key
+            await self.chat_session_crud.session.flush()
 
         if not response:
             # If no workflow step generated a response, use a generic AI response
@@ -64,7 +72,63 @@ class AgentWorkflowService:
 
         return response.strip()
 
-    async def _evaluate_step(
+    async def _process_workflow_step(
+        self,
+        agent: Agent,
+        chat_session: ChatSession,
+        lead: Lead,
+        step_key: str,
+        step_data: Dict[str, Any],
+        user_message: str,
+    ) -> tuple[Optional[str], Optional[str]]:
+        step_type = step_data.get("type")
+        response = None
+        next_step_key = str(int(step_key) + 1)  # Default to next step
+
+        if step_type == "ask_question":
+            # If we are asking a question, the response is the question itself.
+            # The next step remains the current step until an answer is processed.
+            response = step_data.get("question")
+            next_step_key = step_key
+        elif step_type == "process_answer":
+            # Evaluate user's message against conditions to determine next action/status
+            for condition_key, condition_data in step_data.get(
+                "next_step_if_match", {}
+            ).items():
+                if await self._evaluate_condition(
+                    condition_data["condition"],
+                    {"user_message": user_message, "lead": lead},
+                ):
+                    # Execute the action associated with the matched condition
+                    action_response = await self._execute_action(
+                        agent=agent,
+                        chat_session=chat_session,
+                        lead=lead,
+                        step_data=condition_data,  # Use condition_data as step_data for action
+                        user_message=user_message,
+                    )
+                    if action_response:
+                        response = action_response
+                    next_step_key = condition_data.get(
+                        "next_step", str(int(step_key) + 1)
+                    )
+                    break  # Exit after first match
+            if not response:
+                response = "I didn't understand your answer. Could you please rephrase?"
+                next_step_key = step_key  # Stay on the same step if no match
+        else:
+            # For other step types, execute the action directly
+            response = await self._execute_action(
+                agent=agent,
+                chat_session=chat_session,
+                lead=lead,
+                step_data=step_data,
+                user_message=user_message,
+            )
+
+        return response, next_step_key
+
+    async def _execute_action(
         self,
         agent: Agent,
         chat_session: ChatSession,
@@ -72,26 +136,7 @@ class AgentWorkflowService:
         step_data: Dict[str, Any],
         user_message: str,
     ) -> Optional[str]:
-        # Placeholder for evaluating a single step in the workflow.
-        # This would involve checking conditions, making AI calls, or triggering actions.
         step_type = step_data.get("type")
-        step_action = step_data.get("action")
-        step_condition = step_data.get("condition")
-
-        # Example: Lead Qualification Step
-        if step_type == "lead_qualification" and step_action == "update_status":
-            if step_condition and eval(
-                step_condition, {"user_message": user_message, "lead": lead}
-            ):
-                new_status = step_data.get("new_status")
-                if new_status:
-                    await self.lead_crud.update_lead_status(lead.id, new_status)
-                    return f"Lead status updated to {new_status}."
-
-        # Example: Ask a question
-        if step_type == "ask_question":
-            question = step_data.get("question")
-            return question
 
         # Example: Schedule Appointment Step
         if step_type == "schedule_appointment":
@@ -181,3 +226,20 @@ class AgentWorkflowService:
             # Handle insufficient credits (e.g., log, raise error, notify user)
             print(f"Agent {agent.id} has insufficient credits.")
             return False
+
+    async def _evaluate_condition(
+        self, condition: str, context: Dict[str, Any]
+    ) -> bool:
+        # Basic and safe condition evaluation. Extend as needed with a proper expression parser.
+        # Avoids `eval()` for security reasons.
+        user_message = context.get("user_message", "").lower()
+        lead = context.get("lead")
+
+        if "user_message contains 'yes'" in condition.lower():
+            return "yes" in user_message
+        if "user_message contains 'no'" in condition.lower():
+            return "no" in user_message
+        if "lead.qualification_status == 'qualified'" in condition.lower() and lead:
+            return lead.qualification_status == "qualified"
+        # Add more safe conditions as needed
+        return False

@@ -28,3 +28,9 @@ class AgentRead(AgentBase):
 
     class Config:
         from_attributes = True
+
+
+class TwilioCredentials(BaseModel):
+    sid: str
+    auth_token: str
+    phone_number: str

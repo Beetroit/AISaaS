@@ -2,9 +2,18 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from backend.app.dependencies import get_current_user, AgentCRUDDep
+from backend.app.dependencies import (
+    get_current_user,
+    AgentCRUDDep,
+    CredentialServiceDep,
+)
 from backend.app.models.user import User
-from backend.app.schemas.agent import AgentCreate, AgentRead, AgentUpdate
+from backend.app.schemas.agent import (
+    AgentCreate,
+    AgentRead,
+    AgentUpdate,
+    TwilioCredentials,
+)
 
 
 router = APIRouter(prefix="/agents", tags=["agents"])
@@ -93,3 +102,55 @@ async def delete_agent_endpoint(
     if not success:
         raise HTTPException(status_code=404, detail="Agent not found")
     return {"message": "Agent deleted successfully"}
+
+
+@router.post("/{agent_id}/twilio-credentials", response_model=AgentRead)
+async def save_twilio_credentials_endpoint(
+    agent_id: str,
+    twilio_credentials: TwilioCredentials,
+    agent_crud: AgentCRUDDep,
+    credential_service: CredentialServiceDep,
+    current_user: User = Depends(get_current_user),
+):
+    db_agent = await agent_crud.get_agent(agent_id=agent_id, user_id=current_user.id)
+    if db_agent is None:
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    # Save Twilio credentials using the CredentialService
+    await credential_service.create_credential(
+        user_id=current_user.id,
+        credential_type=f"twilio_credentials_{agent_id}",  # Unique type per agent
+        data=twilio_credentials.model_dump(),
+    )
+
+    return db_agent
+
+
+@router.post("/{agent_id}/lead-webhook", response_model=str)
+async def generate_lead_webhook_url_endpoint(
+    agent_id: str,
+    agent_crud: AgentCRUDDep,
+    current_user: User = Depends(get_current_user),
+):
+    db_agent = await agent_crud.get_agent(agent_id=agent_id, user_id=current_user.id)
+    if db_agent is None:
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    # For now, the client_id for the webhook will be the agent_id itself.
+    # In a more complex system, you might generate a separate, more obscure ID.
+    webhook_url = f"/webhooks/lead/{agent_id}"
+    return webhook_url
+
+
+@router.get("/{agent_id}/lead-webhook", response_model=str)
+async def get_lead_webhook_url_endpoint(
+    agent_id: str,
+    agent_crud: AgentCRUDDep,
+    current_user: User = Depends(get_current_user),
+):
+    db_agent = await agent_crud.get_agent(agent_id=agent_id, user_id=current_user.id)
+    if db_agent is None:
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    webhook_url = f"/webhooks/lead/{agent_id}"
+    return webhook_url

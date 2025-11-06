@@ -25,4 +25,6 @@ dependencies = [
     "google-auth-oauthlib>=1.2.0",
     "twilio>=9.8.5",
     "stripe>=13.2.0",
+    "argon2-cffi>=25.1.0",
+    "scalar-fastapi>=1.4.3",
 ]
