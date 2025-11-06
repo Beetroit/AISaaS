@@ -1,0 +1,61 @@
+name: AISaaS
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app/backend --reload-delay 0.25
+    ports:
+      - "8006:8000"
+    volumes:
+      - ./backend:/app/backend:rw
+      - ./.env:/app/.env:ro
+      - ./uploads:/app/uploads:rw # Optional: if you need uploads directory for development
+    env_file:
+      - ./.env
+    depends_on:
+      - db
+      - chroma
+    user: "1000:1000" # Use your host user ID to avoid permission issues
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONPATH=/app/backend
+      - UVICORN_RELOAD_DIRS=/app/backend
+      - WATCHFILES_FORCE_POLLING=true
+    networks:
+      - aisaas
+
+  db:
+    image: postgres:17
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - aisaas
+    ports:
+      - "5436:5432"
+    env_file:
+      - ./.env
+
+  chroma:
+    image: chromadb/chroma:1.3.2
+    ports:
+      - "8003:8000"
+    volumes:
+      - chroma_data:/chroma/data
+    networks:
+      - aisaas
+volumes:
+  postgres_data:
+  chroma_data:
+
+
+networks:
+  aisaas:
+    driver: bridge
+    name: aisaas
