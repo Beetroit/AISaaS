@@ -80,4 +80,5 @@ export const api = {
         callApi(`/appointments/?agent_id=${agentId}`),
     fetchLeads: (agentId) => callApi(`/leads/?agent_id=${agentId}`),
     fetchAgentDetails: (agentId) => callApi(`/agents/${agentId}`),
+    createAgent: (agentData) => callApi("/agents/", "POST", agentData),
 };

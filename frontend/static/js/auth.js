@@ -6,7 +6,7 @@ export function isLoggedIn() {
 }
 
 export function logout() {
-    localStorage.removeItem('access_token');
+    localStorage.removeItem("access_token");
     // window.location.href = '/'; // Temporarily commented out for debugging
 }
 
@@ -17,21 +17,10 @@ export async function handleLogin(event, modalElement) {
 
     try {
         const data = await api.login(email, password);
-        localStorage.setItem('access_token', data.access_token);
-
-        // Fetch user details to get the agent ID
-        const user = await api.fetchUserMe();
-        console.log('User object after login:', user);
-        console.log('User agent_id after login:', user.agent_id);
-        if (user && user.agent_id) {
-            localStorage.setItem('active_agent_id', user.agent_id);
-        } else {
-            console.warn('No agent ID found for the user. Some dashboard features might not work.');
-            // Handle cases where an agent ID might be missing, e.g., redirect to an agent creation page
-        }
+        localStorage.setItem("access_token", data.access_token);
 
         closeModal(modalElement);
-        window.location.href = '/static/dashboard.html'; // Redirect to dashboard
+        window.location.href = "/static/dashboard.html"; // Redirect to dashboard
     } catch (error) {
         alert(`Login failed: ${error.message}`);
     }

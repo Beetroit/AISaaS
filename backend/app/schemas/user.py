@@ -1,3 +1,4 @@
+from typing import List
 from pydantic import BaseModel, EmailStr
 
 
@@ -20,6 +21,7 @@ class UserResponse(BaseModel):
     id: str
     email: EmailStr
     is_active: bool
+    agent_ids: List[str] = []
 
     class Config:
         from_attributes = True

@@ -94,7 +94,13 @@ async def read_root():
 
 @app.get("/users/me", response_model=schemas_user.UserResponse)
 async def read_users_me(current_user: User = Depends(get_current_user)):
-    return current_user
+    agent_ids = [agent.id for agent in current_user.agents]
+    return schemas_user.UserResponse(
+        id=current_user.id,
+        email=current_user.email,
+        is_active=current_user.is_active,
+        agent_ids=agent_ids,
+    )
 
 
 @app.get("/scalar", include_in_schema=False)

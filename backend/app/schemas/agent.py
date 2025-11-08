@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel
@@ -23,8 +24,8 @@ class AgentUpdate(AgentBase):
 class AgentRead(AgentBase):
     id: str
     user_id: str
-    created_at: str
-    updated_at: str
+    created_at: datetime
+    updated_at: datetime
 
     class Config:
         from_attributes = True
