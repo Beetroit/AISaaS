@@ -16,9 +16,9 @@ class Settings(BaseSettings):
     gpt5_model: str = "gpt-5"
     gpt5_mini_model: str = "gpt-5-mini"
     gpt5_nano_model: str = "gpt-5-nano"
-    chroma_host: str = "chroma"
-    chroma_port: int = 8000
-    chroma_db_dir: str = "./chroma_db"
+    chroma_host: str
+    chroma_port: int
+    chroma_db_dir: str
     stripe_public_key: str
     stripe_secret_key: str
     twilio_sid: str

@@ -1,16 +1,15 @@
 import logging
 import traceback
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
 from scalar_fastapi.scalar_fastapi import get_scalar_api_reference  # type: ignore
 
 from backend.app.dependencies import get_current_user
-from backend.app.models.user import User  # Import specific model for type hinting
+from backend.app.models.user import User
 from backend.app.schemas import user as schemas_user
 
 from .routers import agents, appointments, auth, documents, stripe_api, webhooks
@@ -29,6 +28,20 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+origins = [
+    "http://localhost",
+    "http://localhost:3001",
+    "http://localhost:3002",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.exception_handler(RequestValidationError)
@@ -74,22 +87,6 @@ app.include_router(webhooks.router)
 app.include_router(stripe_api.router)
 app.include_router(agents.router)
 app.include_router(appointments.router, prefix="/appointments", tags=["appointments"])
-
-
-app.mount(
-    "/static",
-    StaticFiles(directory=Path(__file__).parent.parent.parent / "frontend" / "static"),
-    name="static",
-)
-
-
-@app.get("/", response_class=HTMLResponse)
-async def read_root():
-    with open(
-        Path(__file__).parent.parent.parent / "frontend" / "static" / "index.html"
-    ) as f:
-        html_content = f.read()
-    return HTMLResponse(content=html_content, status_code=200)
 
 
 @app.get("/users/me", response_model=schemas_user.UserResponse)
