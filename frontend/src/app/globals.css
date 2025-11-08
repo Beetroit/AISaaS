@@ -1,0 +1,141 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --radius: 0.5rem;
+  /* Adjusted to match shadcn/ui default */
+  --background: 0 0% 100%;
+  --foreground: 222.2 84% 4.9%;
+
+  --card: 0 0% 100%;
+  --card-foreground: 222.2 84% 4.9%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 222.2 84% 4.9%;
+
+  --primary: 222.2 47.4% 11.2%;
+  --primary-foreground: 210 40% 98%;
+
+  --secondary: 210 40% 96.1%;
+  --secondary-foreground: 222.2 47.4% 11.2%;
+
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+
+  --accent: 210 40% 96.1%;
+  --accent-foreground: 222.2 47.4% 11.2%;
+
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
+
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --ring: 222.2 84% 4.9%;
+
+  /* Custom app colors - keep these as they are not part of shadcn/ui theme */
+  --app-primary: #1d4ed8;
+  --app-dark: #000000;
+  --app-light-bg: #f5f7fa;
+
+  --font-geist-sans: 'Geist Sans';
+  --font-geist-mono: 'Geist Mono';
+}
+
+.dark {
+  --background: 222.2 84% 4.9%;
+  --foreground: 210 40% 98%;
+
+  --card: 222.2 84% 4.9%;
+  --card-foreground: 210 40% 98%;
+
+  --popover: 222.2 84% 4.9%;
+  --popover-foreground: 210 40% 98%;
+
+  --primary: 217.2 91.2% 59.8%;
+  --primary-foreground: 222.2 47.4% 11.2%;
+
+  --secondary: 217.2 32.4% 17.5%;
+  --secondary-foreground: 210 40% 98%;
+
+  --muted: 217.2 32.4% 17.5%;
+  --muted-foreground: 215 20.2% 65.1%;
+
+  --accent: 217.2 32.4% 17.5%;
+  --accent-foreground: 210 40% 98%;
+
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 210 40% 98%;
+
+  --border: 217.2 32.4% 17.5%;
+  --input: 217.2 32.4% 17.5%;
+  --ring: 217.2 91.2% 59.8%;
+}
+
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+    /* Use hsl for border-color */
+    outline-color: hsl(var(--ring));
+    /* Use hsl for outline-color */
+  }
+
+  body {
+    @apply antialiased bg-background text-foreground;
+    /* Use shadcn/ui background and foreground */
+    /* Remove direct color/background-color settings as they are now handled by shadcn/ui variables */
+  }
+}
+
+@layer components {
+  .btn-primary {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 8px 25px -5px rgba(29, 78, 216, 0.4);
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 15px 35px -5px rgba(29, 78, 216, 0.6);
+    background-color: #1e40af;
+  }
+
+  .card {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.08);
+  }
+
+  .card:hover {
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+    transform: translateY(-5px);
+  }
+
+  .hero {
+    background: radial-gradient(circle at 50% 0%,
+        rgb(29, 78, 216, 0.05) 0%,
+        rgb(255, 255, 255, 0) 30%);
+  }
+
+  .hero h1 {
+    font-size: clamp(3rem, 6vw, 5.5rem);
+    line-height: 1.05;
+    font-weight: 800;
+  }
+
+  .plan-destacado {
+    background: linear-gradient(145deg, #1e40af, #1d4ed8);
+    transform: scale(1.05);
+    box-shadow: 0 20px 40px rgb(29, 78, 216, 0.5);
+  }
+
+  .plan-destacado:hover {
+    transform: scale(1.08);
+    box-shadow: 0 25px 50px rgb(29, 78, 216, 0.7);
+  }
+
+  .stat-icon {
+    background-color: #ede9fe;
+    color: #7c3aed;
+  }
+}
