@@ -40,6 +40,13 @@ class LeadCRUD:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
+    async def get_leads_by_user_id(
+        self, user_id: str, skip: int = 0, limit: int = 100
+    ) -> List[Lead]:
+        stmt = select(Lead).where(Lead.user_id == user_id).offset(skip).limit(limit)
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
     async def update_lead(self, lead_id: str, lead: LeadUpdate) -> Optional[Lead]:
         db_lead = await self.get_lead(lead_id)
         if db_lead:

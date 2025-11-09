@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import { FormEvent, useRef, useState } from "react";
+import { useLogin, useRegister } from "../hooks/useAuth"; // Import the hooks
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -9,8 +10,60 @@ interface AuthModalProps {
 
 export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const [isLogin, setIsLogin] = useState(true); // State to toggle between login and register
+  const loginEmailRef = useRef<HTMLInputElement>(null);
+  const loginPasswordRef = useRef<HTMLInputElement>(null);
+  const registerEmailRef = useRef<HTMLInputElement>(null);
+  const registerPasswordRef = useRef<HTMLInputElement>(null);
+
+  const loginMutation = useLogin();
+  const registerMutation = useRegister();
 
   if (!isOpen) return null;
+
+  const handleLoginSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    const email = loginEmailRef.current?.value;
+    const password = loginPasswordRef.current?.value;
+
+    if (email && password) {
+      loginMutation.mutate(
+        { email, password },
+        {
+          onSuccess: () => {
+            onClose(); // Close modal on successful login
+            window.location.reload(); // Reload page to reflect auth state
+          },
+          onError: (error) => {
+            console.error("Login failed:", error.message);
+            // TODO: Display user-friendly error message
+          },
+        }
+      );
+    }
+  };
+
+  const handleRegisterSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    const email = registerEmailRef.current?.value;
+    const password = registerPasswordRef.current?.value;
+
+    if (email && password) {
+      registerMutation.mutate(
+        { email, password },
+        {
+          onSuccess: () => {
+            console.log("Registration successful!");
+            setIsLogin(true); // Switch to login form after successful registration
+            // TODO: Display success message to user
+          },
+          onError: (error) => {
+            console.error("Registration failed:", error.message);
+            // TODO: Display user-friendly error message
+          },
+        }
+      );
+    }
+  };
 
   return (
     <div
@@ -35,7 +88,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           {isLogin ? (
             <div id="login-section">
               <h3 className="text-xl font-bold text-gray-800 mb-3">Login</h3>
-              <form id="login-form" className="space-y-4">
+              <form id="login-form" className="space-y-4" onSubmit={handleLoginSubmit}>
                 <div>
                   <label htmlFor="login-email" className="sr-only">
                     Email
@@ -45,6 +98,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                     id="login-email"
                     placeholder="Email"
                     required
+                    ref={loginEmailRef}
                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -57,15 +111,22 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                     id="login-password"
                     placeholder="Password"
                     required
+                    ref={loginPasswordRef}
                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <button
                   type="submit"
                   className="w-full bg-blue-600 text-white py-2 rounded-md font-semibold hover:bg-blue-700 transition duration-150"
+                  disabled={loginMutation.isPending}
                 >
-                  Login
+                  {loginMutation.isPending ? "Logging in..." : "Login"}
                 </button>
+                {loginMutation.isError && (
+                  <p className="text-red-500 text-sm mt-2">
+                    {loginMutation.error?.message || "Login failed."}
+                  </p>
+                )}
               </form>
               <p className="text-center text-sm text-gray-600 mt-4">
                 Don't have an account?
@@ -82,7 +143,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           ) : (
             <div id="register-section" className="mt-8">
               <h3 className="text-xl font-bold text-gray-800 mb-3">Register</h3>
-              <form id="register-form" className="space-y-4">
+              <form id="register-form" className="space-y-4" onSubmit={handleRegisterSubmit}>
                 <div>
                   <label htmlFor="register-email" className="sr-only">
                     Email
@@ -92,6 +153,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                     id="register-email"
                     placeholder="Email"
                     required
+                    ref={registerEmailRef}
                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -104,15 +166,22 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                     id="register-password"
                     placeholder="Password"
                     required
+                    ref={registerPasswordRef}
                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <button
                   type="submit"
                   className="w-full bg-green-600 text-white py-2 rounded-md font-semibold hover:bg-green-700 transition duration-150"
+                  disabled={registerMutation.isPending}
                 >
-                  Register
+                  {registerMutation.isPending ? "Registering..." : "Register"}
                 </button>
+                {registerMutation.isError && (
+                  <p className="text-red-500 text-sm mt-2">
+                    {registerMutation.error?.message || "Registration failed."}
+                  </p>
+                )}
               </form>
               <p className="text-center text-sm text-gray-600 mt-4">
                 Already have an account?

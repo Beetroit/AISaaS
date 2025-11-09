@@ -12,7 +12,7 @@ from backend.app.dependencies import get_current_user
 from backend.app.models.user import User
 from backend.app.schemas import user as schemas_user
 
-from .routers import agents, appointments, auth, documents, stripe_api, webhooks
+from .routers import agents, appointments, auth, documents, leads, stripe_api, webhooks
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -87,6 +87,7 @@ app.include_router(webhooks.router)
 app.include_router(stripe_api.router)
 app.include_router(agents.router)
 app.include_router(appointments.router, prefix="/appointments", tags=["appointments"])
+app.include_router(leads.router, prefix="/leads", tags=["leads"])
 
 
 @app.get("/users/me", response_model=schemas_user.UserResponse)

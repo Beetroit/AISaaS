@@ -1,4 +1,18 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"; // Default to localhost if not set
+console.log("Frontend API Base URL:", API_BASE_URL);
+
+// Helper functions for token management
+export function setAuthToken(token: string) {
+  localStorage.setItem("access_token", token);
+}
+
+export function getAuthToken(): string | null {
+  return localStorage.getItem("access_token");
+}
+
+export function removeAuthToken() {
+  localStorage.removeItem("access_token");
+}
 
 interface ApiConfig {
   method?: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
@@ -11,7 +25,7 @@ export async function callApi<T>(
   config?: ApiConfig
 ): Promise<T> {
   const { method = "GET", body, isFormData = false } = config || {};
-  const token = localStorage.getItem("access_token");
+  const token = getAuthToken(); // Use the helper function
   const headers: HeadersInit = {};
 
   if (token) {
@@ -36,8 +50,8 @@ export async function callApi<T>(
   });
 
   if (response.status === 401) {
-    // Handle unauthorized - e.g., redirect to login
-    console.error("Unauthorized: Token might be expired or invalid.");
+    console.error("Unauthorized: Token might be expired or invalid. Removing token.");
+    removeAuthToken(); // Remove invalid token
     // Optionally, trigger a global logout event or redirect
     // window.location.href = '/login'; // Example redirect
     throw new Error("Unauthorized");
