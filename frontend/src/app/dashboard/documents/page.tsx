@@ -1,11 +1,13 @@
 "use client";
 
 import React, { useState } from 'react';
-import { useUploadDocument } from '../../../hooks/useDocuments'; // Adjust path as needed
+import { useDocuments, useUploadDocument, useRemoveDocument } from '../../../hooks/useDocuments'; // Adjust path as needed
 
 export default function DocumentsPage() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const { data: documents, isLoading: isLoadingDocuments, isError: isErrorDocuments, error: errorDocuments } = useDocuments();
   const uploadDocumentMutation = useUploadDocument();
+  const removeDocumentMutation = useRemoveDocument();
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
@@ -20,10 +22,23 @@ export default function DocumentsPage() {
         onSuccess: (data) => {
           console.log("Upload successful:", data);
           setSelectedFiles([]);
-          // TODO: Refresh document list (once GET endpoint is available)
         },
         onError: (error) => {
           console.error("Upload failed:", error.message);
+          // TODO: Display user-friendly error message
+        },
+      });
+    }
+  };
+
+  const handleDeleteDocument = (documentId: string) => {
+    if (confirm("Are you sure you want to delete this document?")) {
+      removeDocumentMutation.mutate(documentId, {
+        onSuccess: () => {
+          console.log(`Document ${documentId} deleted successfully.`);
+        },
+        onError: (err) => {
+          console.error(`Failed to delete document ${documentId}:`, err.message);
           // TODO: Display user-friendly error message
         },
       });
@@ -76,10 +91,40 @@ export default function DocumentsPage() {
 
       <div className="p-4 border rounded-md bg-white dark:bg-gray-800 shadow">
         <h3 className="text-xl font-bold mb-2">Uploaded Documents</h3>
-        <p className="text-gray-600 dark:text-gray-400">
-          (Document listing will appear here once a backend GET endpoint is available.)
-        </p>
-        {/* TODO: Implement actual document listing and delete functionality */}
+        {isLoadingDocuments && <p>Loading documents...</p>}
+        {isErrorDocuments && <p className="text-red-500">Error loading documents: {errorDocuments?.message}</p>}
+        {documents && documents.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="min-w-full bg-white dark:bg-gray-800 rounded-lg shadow">
+              <thead>
+                <tr className="w-full bg-gray-200 dark:bg-gray-700 text-left text-gray-600 dark:text-gray-300 uppercase text-sm">
+                  <th className="py-3 px-4">Filename</th>
+                  <th className="py-3 px-4">Uploaded At</th>
+                  <th className="py-3 px-4">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {documents.map((doc) => (
+                  <tr key={doc.id} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700">
+                    <td className="py-3 px-4">{doc.filename}</td>
+                    <td className="py-3 px-4">{new Date(doc.created_at).toLocaleString()}</td>
+                    <td className="py-3 px-4">
+                      <button
+                        onClick={() => handleDeleteDocument(doc.id)}
+                        className="bg-red-500 text-white px-3 py-1 rounded-md text-sm hover:bg-red-600"
+                        disabled={removeDocumentMutation.isPending}
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          !isLoadingDocuments && <p>No documents uploaded yet.</p>
+        )}
       </div>
     </div>
   );

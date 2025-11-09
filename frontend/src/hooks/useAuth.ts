@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { loginUser, registerUser, logoutUser } from "../lib/api/auth";
+import { loginUser, registerUser, logoutUser, fetchUserMe } from "../lib/api/auth"; // Import fetchUserMe
 import { getAuthToken, removeAuthToken } from "../lib/api/core";
 import { Token, UserResponse } from "../types/auth";
 
@@ -11,6 +11,7 @@ export function useLogin() {
     mutationFn: ({ email, password }) => loginUser(email, password),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["authStatus"] });
+      queryClient.invalidateQueries({ queryKey: ["userMe"] }); // Invalidate userMe query
       // Optionally, redirect to dashboard or update UI
       console.log("Login successful:", data);
       // window.location.href = "/dashboard"; // Example redirect
@@ -45,6 +46,7 @@ export function useLogout() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["authStatus"] });
+      queryClient.invalidateQueries({ queryKey: ["userMe"] }); // Invalidate userMe query
       // Optionally, redirect to home page
       console.log("Logout successful");
       // window.location.href = "/"; // Example redirect
@@ -65,5 +67,14 @@ export function useAuthStatus() {
       return Promise.resolve(!!token); // Returns true if token exists, false otherwise
     },
     staleTime: Infinity, // Auth status doesn't change often without explicit action
+  });
+}
+
+export function useUserMe() {
+  const { data: isAuthenticated } = useAuthStatus();
+  return useQuery<UserResponse, Error>({
+    queryKey: ["userMe"],
+    queryFn: fetchUserMe,
+    enabled: isAuthenticated, // Only fetch if authenticated
   });
 }

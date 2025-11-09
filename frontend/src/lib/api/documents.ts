@@ -1,6 +1,10 @@
 import { callApi } from "./core";
 import { KnowledgeBaseDocumentResponse } from "../../types/document";
 
+export async function getDocuments(): Promise<KnowledgeBaseDocumentResponse[]> {
+  return callApi<KnowledgeBaseDocumentResponse[]>("/documents/");
+}
+
 export async function uploadDocument(files: File[]): Promise<{ message: string; filenames: string[]; user_id: string }> {
   const formData = new FormData();
   files.forEach((file) => {

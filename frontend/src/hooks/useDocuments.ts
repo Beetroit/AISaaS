@@ -1,6 +1,15 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { uploadDocument, removeDocument } from "../lib/api/documents";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { uploadDocument, removeDocument, getDocuments } from "../lib/api/documents";
 import { KnowledgeBaseDocumentResponse } from "../types/document";
+
+// --- Queries ---
+
+export function useDocuments() {
+  return useQuery<KnowledgeBaseDocumentResponse[], Error>({
+    queryKey: ["documents"],
+    queryFn: getDocuments,
+  });
+}
 
 // --- Mutations ---
 
@@ -13,8 +22,7 @@ export function useUploadDocument() {
   >({
     mutationFn: (files: File[]) => uploadDocument(files),
     onSuccess: () => {
-      // Invalidate queries that list documents, if any
-      // queryClient.invalidateQueries({ queryKey: ["documents"] });
+      queryClient.invalidateQueries({ queryKey: ["documents"] }); // Invalidate to refetch list
       console.log("Documents uploaded successfully.");
     },
   });
@@ -25,8 +33,7 @@ export function useRemoveDocument() {
   return useMutation<{ message: string }, Error, string>({
     mutationFn: (documentId: string) => removeDocument(documentId),
     onSuccess: () => {
-      // Invalidate queries that list documents, if any
-      // queryClient.invalidateQueries({ queryKey: ["documents"] });
+      queryClient.invalidateQueries({ queryKey: ["documents"] }); // Invalidate to refetch list
       console.log("Document removed successfully.");
     },
   });

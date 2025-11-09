@@ -70,7 +70,10 @@ export default function BillingPage() {
                 <h4 className="font-semibold">{pkg.name}</h4>
                 <p>{pkg.description}</p>
                 <p className="text-lg font-bold">
-                  {(pkg.unit_amount / 100).toFixed(2)} {pkg.currency.toUpperCase()}
+                  {pkg.unit_amount !== null && pkg.unit_amount !== undefined
+                    ? (pkg.unit_amount / 100).toFixed(2)
+                    : "N/A"}{" "}
+                  {pkg.currency.toUpperCase()}
                 </p>
                 <button
                   onClick={() => handlePurchasePackage(pkg.price_id)}

@@ -24,6 +24,10 @@ export async function registerUser(email: string, password: string): Promise<Use
   return user;
 }
 
+export async function fetchUserMe(): Promise<UserResponse> {
+  return callApi<UserResponse>("/users/me");
+}
+
 export function logoutUser(): void {
   removeAuthToken();
 }
