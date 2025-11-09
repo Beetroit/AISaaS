@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useRef, useState } from "react";
+import { useRouter } from "next/navigation"; // Import useRouter
 import { useLogin, useRegister } from "../hooks/useAuth"; // Import the hooks
 
 interface AuthModalProps {
@@ -15,6 +16,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const registerEmailRef = useRef<HTMLInputElement>(null);
   const registerPasswordRef = useRef<HTMLInputElement>(null);
 
+  const router = useRouter(); // Initialize useRouter
   const loginMutation = useLogin();
   const registerMutation = useRegister();
 
@@ -31,7 +33,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
         {
           onSuccess: () => {
             onClose(); // Close modal on successful login
-            window.location.reload(); // Reload page to reflect auth state
+            router.push("/dashboard"); // Navigate to dashboard
           },
           onError: (error) => {
             console.error("Login failed:", error.message);
