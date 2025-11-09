@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     gpt5_model: str = "gpt-5"
     gpt5_mini_model: str = "gpt-5-mini"
     gpt5_nano_model: str = "gpt-5-nano"
+    embedding_model: str = "text-embedding-3-small"
     chroma_host: str
     chroma_port: int
     chroma_db_dir: str

@@ -3,18 +3,37 @@ from typing import List
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
+from backend.app.crud.knowledge_base_document_crud import KnowledgeBaseDocumentCRUD
 from backend.app.dependencies import (
+    get_current_user,
     get_document_processor_service,
     get_knowledge_base_document_crud,
-    get_current_user,
 )
 from backend.app.models.user import User
-from backend.app.schemas.knowledge_base_document import KnowledgeBaseDocumentCreate
-
+from backend.app.schemas.knowledge_base_document import (
+    KnowledgeBaseDocumentCreate,
+    KnowledgeBaseDocumentResponse,  # Corrected import
+)
 from backend.app.services.document_processor_service import DocumentProcessorService
-from backend.app.crud.knowledge_base_document_crud import KnowledgeBaseDocumentCRUD
 
 router = APIRouter()
+
+
+@router.get(
+    "/", response_model=List[KnowledgeBaseDocumentResponse]
+)  # Corrected response_model
+async def get_documents(
+    current_user: User = Depends(get_current_user),
+    knowledge_base_document_crud: KnowledgeBaseDocumentCRUD = Depends(
+        get_knowledge_base_document_crud
+    ),
+):
+    documents = (
+        await knowledge_base_document_crud.get_knowledge_base_documents_by_user_id(
+            current_user.id
+        )
+    )
+    return documents
 
 
 @router.post("/upload-document/")
@@ -48,6 +67,25 @@ async def upload_document(
                 detail=f"Document {file.filename} already exists for this user.",
             )
 
+        # Determine content type and process accordingly
+        processed_content: str | bytes
+        if file.content_type == "application/pdf":
+            processed_content = content  # Keep as bytes for PDF processing
+        elif file.content_type in ["text/plain", "text/markdown"]:
+            try:
+                processed_content = content.decode("utf-8")
+            except UnicodeDecodeError:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"File {file.filename} could not be decoded as UTF-8 text. "
+                    "Please ensure it's a plain text file or encoded in UTF-8.",
+                )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unsupported file type: {file.content_type}. Only PDF, plain text, and Markdown are supported.",
+            )
+
         # Create metadata entry in PostgreSQL
         doc_create = KnowledgeBaseDocumentCreate(
             filename=file.filename,
@@ -59,9 +97,8 @@ async def upload_document(
             doc_create
         )
 
-        # Process and store embeddings in ChromaDB
         await document_processor_service.process_document(
-            document_content=content.decode("utf-8"),  # Assuming text content
+            document_content=processed_content,
             document_id=db_doc.id,
             user_id=current_user.id,
             agent_id=None,  # Agent association will be handled later

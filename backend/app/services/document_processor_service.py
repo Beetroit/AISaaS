@@ -1,5 +1,10 @@
+from io import BytesIO
+from typing import Union
+
 from chromadb.api import ClientAPI
 from chromadb.utils import embedding_functions
+from pypdf import PdfReader
+from pypdf.errors import PdfReadError
 
 from backend.app.config import settings
 from backend.app.services.ai_service import AIService
@@ -10,7 +15,7 @@ class DocumentProcessorService:
         self,
         ai_service: AIService,
         chroma_client: ClientAPI,
-        embedding_model: str = settings.gpt5_mini_model,  # Using a smaller model for embeddings
+        embedding_model: str = settings.embedding_model,  # Using a smaller model for embeddings
     ):
         self.ai_service: AIService = ai_service
         self.chroma_client: ClientAPI = chroma_client
@@ -20,15 +25,28 @@ class DocumentProcessorService:
 
     async def process_document(
         self,
-        document_content: str,
+        document_content: Union[str, bytes],
         document_id: str,
         user_id: str,
         agent_id: str | None = None,
         collection_name: str = "knowledge_base",
     ):
+        text_content: str
+        if isinstance(document_content, bytes):
+            # Assume PDF and extract text
+            try:
+                pdf_reader = PdfReader(BytesIO(document_content))
+                text_content = ""
+                for page in pdf_reader.pages:
+                    text_content += page.extract_text() + "\n"
+            except PdfReadError:
+                raise ValueError("Could not read PDF file.")
+        else:
+            text_content = document_content
+
         # 1. Chunk the text (simple split for now, can be improved)
         chunks = [
-            chunk.strip() for chunk in document_content.split("\n\n") if chunk.strip()
+            chunk.strip() for chunk in text_content.split("\n\n") if chunk.strip()
         ]
 
         # 2. Generate embeddings for each chunk
