@@ -1,6 +1,16 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"; // Default to localhost if not set
 console.log("Frontend API Base URL:", API_BASE_URL);
 
+// Custom Error class to include status code
+export class ApiError extends Error {
+  statusCode: number;
+  constructor(message: string, statusCode: number) {
+    super(message);
+    this.name = "ApiError";
+    this.statusCode = statusCode;
+  }
+}
+
 // Helper functions for token management
 export function setAuthToken(token: string) {
   localStorage.setItem("access_token", token);
@@ -54,12 +64,12 @@ export async function callApi<T>(
     removeAuthToken(); // Remove invalid token
     // Optionally, trigger a global logout event or redirect
     // window.location.href = '/login'; // Example redirect
-    throw new Error("Unauthorized");
+    throw new ApiError("Unauthorized", response.status); // Throw ApiError
   }
 
   if (!response.ok) {
     const errorData = await response.json();
-    throw new Error(errorData.detail || "API call failed");
+    throw new ApiError(errorData.detail || "API call failed", response.status); // Throw ApiError
   }
 
   return response.json() as Promise<T>;

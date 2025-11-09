@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState } from 'react';
-import { useDocuments, useUploadDocument, useRemoveDocument } from '../../../hooks/useDocuments'; // Adjust path as needed
+import { useDocuments, useUploadDocument, useRemoveDocument } from '../../../hooks/useDocuments';
+import { ApiError } from '../../../lib/api/core'; // Import ApiError
 
 export default function DocumentsPage() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -92,7 +93,13 @@ export default function DocumentsPage() {
       <div className="p-4 border rounded-md bg-white dark:bg-gray-800 shadow">
         <h3 className="text-xl font-bold mb-2">Uploaded Documents</h3>
         {isLoadingDocuments && <p>Loading documents...</p>}
-        {isErrorDocuments && <p className="text-red-500">Error loading documents: {errorDocuments?.message}</p>}
+        {isErrorDocuments && (
+          <p className="text-red-500">
+            {errorDocuments instanceof ApiError && errorDocuments.statusCode === 404
+              ? "No documents available currently."
+              : errorDocuments?.message || "Error loading documents."}
+          </p>
+        )}
         {documents && documents.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="min-w-full bg-white dark:bg-gray-800 rounded-lg shadow">

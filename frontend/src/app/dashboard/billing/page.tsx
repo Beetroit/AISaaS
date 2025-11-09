@@ -7,7 +7,8 @@ import {
   useCreateStripeSubscription,
   useCreateCheckoutSession,
   useGetCustomerPortalUrl,
-} from '../../../hooks/useStripe'; // Adjust path as needed
+} from '../../../hooks/useStripe';
+import { ApiError } from '../../../lib/api/core'; // Import ApiError
 
 export default function BillingPage() {
   const { data: subscriptionStatus, isLoading: isLoadingSubscription, isError: isErrorSubscription, error: errorSubscription } = useSubscriptionStatus();
@@ -40,7 +41,12 @@ export default function BillingPage() {
         {isErrorSubscription && <p className="text-red-500">Error: {errorSubscription?.message}</p>}
         {subscriptionStatus && (
           <div>
-            <p>Status: {subscriptionStatus.status}</p>
+            <p>
+              Status:{" "}
+              {subscriptionStatus.status === "no_subscription"
+                ? "Free"
+                : subscriptionStatus.status}
+            </p>
             {subscriptionStatus.subscription && (
               <>
                 <p>Plan: {subscriptionStatus.subscription.items[0]?.price?.id || 'N/A'}</p>
@@ -62,7 +68,13 @@ export default function BillingPage() {
       <div className="p-4 border rounded-md bg-white dark:bg-gray-800 shadow">
         <h3 className="text-xl font-bold mb-2">Purchase Message Packages</h3>
         {isLoadingPackages && <p>Loading packages...</p>}
-        {isErrorPackages && <p className="text-red-500">Error: {errorPackages?.message}</p>}
+        {isErrorPackages && (
+          <p className="text-red-500">
+            {errorPackages instanceof ApiError && errorPackages.statusCode === 404
+              ? "No message packages available currently."
+              : errorPackages?.message || "Error loading message packages."}
+          </p>
+        )}
         {messagePackages && messagePackages.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {messagePackages.map((pkg) => (

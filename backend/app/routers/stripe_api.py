@@ -5,6 +5,8 @@ from backend.app.config import settings
 from backend.app.dependencies import CredentialServiceDep, CurrentUser
 from backend.app.schemas.stripe import StripeCustomerCreate, StripeSubscriptionCreate
 
+stripe.api_key = settings.stripe_secret_key
+
 router = APIRouter(prefix="/stripe", tags=["Stripe"])
 
 

@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { useLogout, useAuthStatus } from "../../hooks/useAuth";
+import { useLogout, useAuthStatus, useUserMe } from "../../hooks/useAuth"; // Import useUserMe
 import { useRouter } from "next/navigation";
 import {
   Home,
@@ -22,6 +22,7 @@ export default function DashboardShell({
   const router = useRouter();
   const logoutMutation = useLogout();
   const { data: isAuthenticated, isLoading } = useAuthStatus();
+  const { data: user, isLoading: isLoadingUser } = useUserMe(); // Fetch user data
 
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {
@@ -31,7 +32,7 @@ export default function DashboardShell({
     });
   };
 
-  if (isLoading) {
+  if (isLoading || isLoadingUser) { // Check both auth status and user loading
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
         <p>Loading user data...</p>
@@ -123,8 +124,7 @@ export default function DashboardShell({
           <h1 className="text-3xl font-semibold">Dashboard</h1>
           {/* User Info / Settings */}
           <div>
-            {/* Placeholder for user email or avatar */}
-            <span className="text-gray-700 dark:text-gray-300">User Email</span>
+            {user && <span className="text-gray-700 dark:text-gray-300">{user.email}</span>}
           </div>
         </header>
         {children}

@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     database_url: str
     secret_key: str
     algorithm: str = "HS256"
-    access_token_expire_minutes: int = 60 * 24  # 1 day
+    access_token_expire_minutes: int = 60 * 24
     openai_api_key: str
     gpt5_model: str = "gpt-5"
     gpt5_mini_model: str = "gpt-5-mini"

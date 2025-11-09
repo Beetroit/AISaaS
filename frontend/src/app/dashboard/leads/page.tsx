@@ -1,7 +1,8 @@
 "use client";
 
 import React from 'react';
-import { useLeads, useDeleteLead } from '../../../hooks/useLeads'; // Adjust path as needed
+import { useLeads, useDeleteLead } from '../../../hooks/useLeads';
+import { ApiError } from '../../../lib/api/core'; // Import ApiError
 
 export default function LeadsPage() {
   const { data: leads, isLoading, isError, error } = useLeads();
@@ -32,10 +33,14 @@ export default function LeadsPage() {
   }
 
   if (isError) {
+    const errorMessage =
+      error instanceof ApiError && error.statusCode === 404
+        ? "No leads available currently."
+        : error?.message || "Error loading leads.";
     return (
       <div>
         <h2 className="text-2xl font-semibold mb-4">Leads Management</h2>
-        <p className="text-red-500">Error loading leads: {error?.message}</p>
+        <p className="text-red-500">{errorMessage}</p>
       </div>
     );
   }
