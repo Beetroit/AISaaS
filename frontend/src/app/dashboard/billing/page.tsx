@@ -6,9 +6,11 @@ import {
   useMessagePackages,
   useSubscriptionStatus,
 } from '../../../hooks/useStripe';
+import { useStripeFeedback } from '../../../hooks/useStripeFeedback'; // Import the new hook
 import { ApiError } from '../../../lib/api/core'; // Import ApiError
 
 export default function BillingPage() {
+  useStripeFeedback(); // Call the hook here
   const { data: subscriptionStatus, isLoading: isLoadingSubscription, isError: isErrorSubscription, error: errorSubscription } = useSubscriptionStatus();
   const { data: messagePackages, isLoading: isLoadingPackages, isError: isErrorPackages, error: errorPackages } = useMessagePackages();
 

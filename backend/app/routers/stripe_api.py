@@ -1,9 +1,11 @@
-import stripe  # type: ignore
+import stripe
 from fastapi import APIRouter, HTTPException
 
-from backend.app.config import settings
+from backend.app.config import logger, settings
 from backend.app.dependencies import CredentialServiceDep, CurrentUser
 from backend.app.schemas.stripe import StripeCustomerCreate, StripeSubscriptionCreate
+
+stripe.api_key = settings.stripe_secret_key
 
 
 def _ensure_https_scheme(url: str) -> str:
@@ -11,8 +13,6 @@ def _ensure_https_scheme(url: str) -> str:
         return f"https://{url}"
     return url
 
-
-stripe.api_key = settings.stripe_secret_key
 
 router = APIRouter(prefix="/stripe", tags=["Stripe"])
 
@@ -76,6 +76,7 @@ async def create_stripe_subscription(
 
 @router.get("/customer-portal")
 async def get_customer_portal_session(
+    prev_url: str,
     current_user: CurrentUser,
     credential_service: CredentialServiceDep,
 ):
@@ -90,7 +91,7 @@ async def get_customer_portal_session(
     try:
         session = stripe.billing_portal.Session.create(
             customer=stripe_customer_id,
-            return_url=_ensure_https_scheme(settings.stripe_customer_portal_return_url),
+            return_url=_ensure_https_scheme(prev_url + "?stripe_status=success"),
         )
         return {"url": session.url}
     except stripe.StripeError as e:
@@ -147,6 +148,7 @@ async def get_message_packages():
 @router.post("/create-checkout-session")
 async def create_checkout_session(
     price_id: str,
+    prev_url: str,
     current_user: CurrentUser,
     credential_service: CredentialServiceDep,
 ):
@@ -158,7 +160,7 @@ async def create_checkout_session(
         try:
             customer = stripe.Customer.create(
                 email=current_user.email,
-                name=current_user.email,  # Using email as name if no other name is available
+                name=current_user.email,
                 description=f"Customer for {current_user.email}",
             )
             await credential_service.save_stripe_customer_id(
@@ -182,12 +184,8 @@ async def create_checkout_session(
                 }
             ],
             mode="payment",
-            success_url=_ensure_https_scheme(
-                settings.stripe_customer_portal_return_url + "?success=true"
-            ),
-            cancel_url=_ensure_https_scheme(
-                settings.stripe_customer_portal_return_url + "?canceled=true"
-            ),
+            success_url=_ensure_https_scheme(prev_url + "?stripe_status=success"),
+            cancel_url=_ensure_https_scheme(prev_url + "?stripe_status=failed"),
         )
         return {"url": checkout_session.url}
     except stripe.StripeError as e:

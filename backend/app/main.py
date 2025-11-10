@@ -1,4 +1,3 @@
-import logging
 import traceback
 from contextlib import asynccontextmanager
 
@@ -6,18 +5,15 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
+
+# Configure logging
 from scalar_fastapi.scalar_fastapi import get_scalar_api_reference  # type: ignore
 
+from backend.app.config import logger
 from backend.app.dependencies import CurrentUser
 from backend.app.schemas import user as schemas_user
 
 from .routers import agents, appointments, auth, documents, leads, stripe_api, webhooks
-
-logger = logging.getLogger(__name__)
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s",
-)
 
 
 @asynccontextmanager

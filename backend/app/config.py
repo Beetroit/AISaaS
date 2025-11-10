@@ -1,4 +1,25 @@
+import logging
+from datetime import datetime, timezone
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Configure logging
+from rich.console import Console
+from rich.logging import RichHandler
+
+console = Console(
+    force_terminal=True,
+    width=None,
+    safe_box=False,
+    get_datetime=lambda: datetime.now(timezone.utc),
+)
+logging.basicConfig(
+    level="INFO",
+    format="%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s\n",
+    datefmt="[%X]",
+    handlers=[RichHandler(console=console, show_time=True, show_level=True)],
+)
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):

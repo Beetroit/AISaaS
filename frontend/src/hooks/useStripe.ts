@@ -60,7 +60,7 @@ export function useCreateStripeSubscription() {
 
 export function useGetCustomerPortalUrl() {
   return useMutation<{ url: string }, Error, void>({
-    mutationFn: () => getCustomerPortalUrl(),
+    mutationFn: () => getCustomerPortalUrl(window.location.href),
     onSuccess: (data) => {
       // Optionally redirect the user to the portal URL
       window.location.href = data.url;
@@ -70,7 +70,8 @@ export function useGetCustomerPortalUrl() {
 
 export function useCreateCheckoutSession() {
   return useMutation<{ url: string }, Error, string>({
-    mutationFn: (priceId: string) => createCheckoutSession(priceId),
+    mutationFn: (priceId: string) =>
+      createCheckoutSession(priceId, window.location.href),
     onSuccess: (data) => {
       // Optionally redirect the user to the checkout URL
       window.location.href = data.url;

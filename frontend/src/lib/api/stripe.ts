@@ -27,8 +27,10 @@ export async function createStripeSubscription(
   );
 }
 
-export async function getCustomerPortalUrl(): Promise<{ url: string }> {
-  return callApi<{ url: string }>("/stripe/customer-portal");
+export async function getCustomerPortalUrl(prevUrl: string): Promise<{ url: string }> {
+  return callApi<{ url: string }>(
+    `/stripe/customer-portal?prev_url=${encodeURIComponent(prevUrl)}`
+  );
 }
 
 export async function getSubscriptionStatus(): Promise<{
@@ -45,9 +47,13 @@ export async function getMessagePackages(): Promise<MessagePackage[]> {
 }
 
 export async function createCheckoutSession(
-  priceId: string
+  priceId: string,
+  prevUrl: string
 ): Promise<{ url: string }> {
-  return callApi<{ url: string }>(`/stripe/create-checkout-session?price_id=${priceId}`, {
-    method: "POST",
-  });
+  return callApi<{ url: string }>(
+    `/stripe/create-checkout-session?price_id=${priceId}&prev_url=${encodeURIComponent(prevUrl)}`,
+    {
+      method: "POST",
+    }
+  );
 }
