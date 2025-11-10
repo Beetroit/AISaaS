@@ -1,12 +1,10 @@
 "use client";
 
-import React from 'react';
 import {
-  useSubscriptionStatus,
-  useMessagePackages,
-  useCreateStripeSubscription,
   useCreateCheckoutSession,
   useGetCustomerPortalUrl,
+  useMessagePackages,
+  useSubscriptionStatus,
 } from '../../../hooks/useStripe';
 import { ApiError } from '../../../lib/api/core'; // Import ApiError
 
@@ -14,13 +12,11 @@ export default function BillingPage() {
   const { data: subscriptionStatus, isLoading: isLoadingSubscription, isError: isErrorSubscription, error: errorSubscription } = useSubscriptionStatus();
   const { data: messagePackages, isLoading: isLoadingPackages, isError: isErrorPackages, error: errorPackages } = useMessagePackages();
 
-  const createSubscriptionMutation = useCreateStripeSubscription();
+
   const createCheckoutSessionMutation = useCreateCheckoutSession();
   const getCustomerPortalUrlMutation = useGetCustomerPortalUrl();
 
-  const handleSubscribe = (priceId: string) => {
-    createSubscriptionMutation.mutate({ price_id: priceId });
-  };
+
 
   const handlePurchasePackage = (priceId: string) => {
     createCheckoutSessionMutation.mutate(priceId);
@@ -49,7 +45,7 @@ export default function BillingPage() {
             </p>
             {subscriptionStatus.subscription && (
               <>
-                <p>Plan: {subscriptionStatus.subscription.items[0]?.price?.id || 'N/A'}</p>
+                <p>Plan: {(subscriptionStatus.subscription.items[0]?.price as { id: string })?.id || 'N/A'}</p>
                 <p>Renews: {new Date(subscriptionStatus.subscription.current_period_end * 1000).toLocaleDateString()}</p>
               </>
             )}

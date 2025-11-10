@@ -37,9 +37,7 @@ class ChatSession(Base):
     end_time: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    status: Mapped[str] = mapped_column(
-        String(50), default="active"
-    )  # e.g., active, completed, abandoned
+    status: Mapped[str] = mapped_column(String(50), default="active")
     current_workflow_step: Mapped[str | None] = mapped_column(
         String(255), nullable=True
     )

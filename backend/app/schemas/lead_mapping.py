@@ -1,7 +1,9 @@
 from __future__ import annotations
-from pydantic import BaseModel, Field
-from typing import Dict, Any
+
 from datetime import datetime
+from typing import Any, Dict
+
+from pydantic import BaseModel, Field
 
 
 class LeadMappingConfig(BaseModel):
@@ -20,8 +22,8 @@ class LeadMappingCreate(BaseModel):
 class LeadMappingResponse(BaseModel):
     id: str
     user_id: str
-    credential_type: str  # This will be 'lead_mapping'
-    credentials_data: LeadMappingConfig  # Store the config here
+    credential_type: str
+    credentials_data: LeadMappingConfig
     created_at: datetime
     updated_at: datetime
 

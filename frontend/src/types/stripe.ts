@@ -1,20 +1,22 @@
+import { JsonValue } from "./agent";
+
 export interface StripeProduct {
   id: string;
   name: string;
   description?: string | null;
   active: boolean;
-  metadata: Record<string, any>;
+  metadata: Record<string, JsonValue>;
 }
 
 export interface StripePrice {
   id: string;
-  product: string; // ID of the product this price is for
+  product: string
   active: boolean;
-  unit_amount?: number | null; // Amount in cents
+  unit_amount?: number | null
   currency: string;
-  type: string; // e.g., 'recurring', 'one_time'
-  recurring?: Record<string, any> | null; // Details for recurring prices
-  metadata: Record<string, any>;
+  type: string
+  recurring?: Record<string, JsonValue> | null
+  metadata: Record<string, JsonValue>;
 }
 
 // Frontend will call our backend to create these, so these are request bodies for our backend
@@ -31,9 +33,9 @@ export interface StripeSubscription {
   id: string;
   customer: string;
   status: string;
-  current_period_end: number; // Unix timestamp
+  current_period_end: number
   cancel_at_period_end: boolean;
-  items: Array<Record<string, any>>;
+  items: Array<Record<string, JsonValue>>;
 }
 
 export interface MessagePackage {

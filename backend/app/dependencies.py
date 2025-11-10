@@ -26,7 +26,6 @@ from backend.app.services.google_calendar_service import GoogleCalendarService
 from backend.app.services.openai_service import OpenAIService
 from backend.app.services.retrieval_service import RetrievalService
 
-# Initialize ChromaDB client
 chroma_client = chromadb.HttpClient(
     host=settings.chroma_host, port=settings.chroma_port
 )
@@ -173,3 +172,12 @@ DBSession = Annotated[AsyncSession, Depends(get_db)]
 AgentWorkflowServiceDep = Annotated[
     AgentWorkflowService, Depends(get_agent_workflow_service)
 ]
+OpenAIServiceDep = Annotated[OpenAIService, Depends(get_openai_service)]
+DocumentProcessorServiceDep = Annotated[
+    DocumentProcessorService, Depends(get_document_processor_service)
+]
+RetrievalServiceDep = Annotated[RetrievalService, Depends(get_retrieval_service)]
+GoogleCalendarServiceDep = Annotated[
+    GoogleCalendarService, Depends(get_google_calendar_service)
+]
+ChromaClientDep = Annotated[ClientAPI, Depends(get_chroma_client)]

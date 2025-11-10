@@ -5,7 +5,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from ulid import ULID
 
 from backend.app.database import Base
-from backend.app.models.user import User  # Import User model for relationship
+from backend.app.models.user import User
 
 
 class Credential(Base):

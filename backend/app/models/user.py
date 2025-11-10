@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Dict
 
-from sqlalchemy import Boolean, String
+from sqlalchemy import Boolean, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from ulid import ULID
 
@@ -13,9 +13,9 @@ if TYPE_CHECKING:
     from backend.app.models.agent import Agent
     from backend.app.models.appointment import Appointment
     from backend.app.models.chat_session import ChatSession
+    from backend.app.models.credential import Credential
     from backend.app.models.knowledge_base_document import KnowledgeBaseDocument
     from backend.app.models.lead import Lead
-    from backend.app.models.credential import Credential
 
 
 class User(Base):
@@ -34,6 +34,9 @@ class User(Base):
     )
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    message_credits: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0", nullable=False
+    )
 
     agents: Mapped[list[Agent]] = relationship("Agent", back_populates="owner")
     knowledge_base_documents: Mapped[list[KnowledgeBaseDocument]] = relationship(
@@ -58,6 +61,7 @@ class User(Base):
             "id": self.id,
             "email": self.email,
             "is_active": self.is_active,
+            "message_credits": self.message_credits,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

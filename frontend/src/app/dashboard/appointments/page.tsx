@@ -1,11 +1,17 @@
 "use client";
 
-import React from 'react';
-import { useAppointments, useDeleteAppointment } from '../../../hooks/useAppointments'; // Adjust path as needed
+import React, { useState } from 'react';
+import { useAppointments, useDeleteAppointment } from '../../../hooks/useAppointments';
+import AddAppointmentModal from '../../../components/appointments/AddAppointmentModal'; // Import AddAppointmentModal
+import EditAppointmentModal from '../../../components/appointments/EditAppointmentModal'; // Import EditAppointmentModal
+import { AppointmentRead } from '../../../types/appointment'; // Import AppointmentRead type
 
 export default function AppointmentsPage() {
   const { data: appointments, isLoading, isError, error } = useAppointments();
   const deleteAppointmentMutation = useDeleteAppointment();
+  const [isAddAppointmentModalOpen, setIsAddAppointmentModalOpen] = useState(false);
+  const [isEditAppointmentModalOpen, setIsEditAppointmentModalOpen] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<AppointmentRead | null>(null);
 
   const handleDeleteAppointment = (appointmentId: string) => {
     if (confirm("Are you sure you want to delete this appointment?")) {
@@ -20,6 +26,11 @@ export default function AppointmentsPage() {
         },
       });
     }
+  };
+
+  const handleEditClick = (appointment: AppointmentRead) => {
+    setSelectedAppointment(appointment);
+    setIsEditAppointmentModalOpen(true);
   };
 
   if (isLoading) {
@@ -42,7 +53,15 @@ export default function AppointmentsPage() {
 
   return (
     <div>
-      <h2 className="text-2xl font-semibold mb-4">Appointments Management</h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-semibold">Appointments Management</h2>
+        <button
+          onClick={() => setIsAddAppointmentModalOpen(true)}
+          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+        >
+          Schedule New Appointment
+        </button>
+      </div>
 
       {appointments && appointments.length > 0 ? (
         <div className="overflow-x-auto">
@@ -63,7 +82,13 @@ export default function AppointmentsPage() {
                   <td className="py-3 px-4">{appointment.status}</td>
                   <td className="py-3 px-4">{appointment.agent_id}</td>
                   <td className="py-3 px-4">{appointment.lead_id}</td>
-                  <td className="py-3 px-4">
+                  <td className="py-3 px-4 flex space-x-2">
+                    <button
+                      onClick={() => handleEditClick(appointment)}
+                      className="bg-yellow-500 text-white px-3 py-1 rounded-md text-sm hover:bg-yellow-600"
+                    >
+                      Edit
+                    </button>
                     <button
                       onClick={() => handleDeleteAppointment(appointment.id)}
                       className="bg-red-500 text-white px-3 py-1 rounded-md text-sm hover:bg-red-600"
@@ -79,6 +104,24 @@ export default function AppointmentsPage() {
         </div>
       ) : (
         <p>No appointments found.</p>
+      )}
+
+      {isAddAppointmentModalOpen && (
+        <AddAppointmentModal
+          isOpen={isAddAppointmentModalOpen}
+          onClose={() => setIsAddAppointmentModalOpen(false)}
+        />
+      )}
+
+      {isEditAppointmentModalOpen && selectedAppointment && (
+        <EditAppointmentModal
+          isOpen={isEditAppointmentModalOpen}
+          onClose={() => {
+            setIsEditAppointmentModalOpen(false);
+            setSelectedAppointment(null);
+          }}
+          appointment={selectedAppointment}
+        />
       )}
     </div>
   );

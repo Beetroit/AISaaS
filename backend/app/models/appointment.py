@@ -33,9 +33,7 @@ class Appointment(Base):
     appointment_time: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )
-    status: Mapped[str] = mapped_column(
-        String(50), default="scheduled"
-    )  # e.g., scheduled, completed, cancelled
+    status: Mapped[str] = mapped_column(String(50), default="scheduled")
     notes: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     user: Mapped[User] = relationship("User", back_populates="appointments")

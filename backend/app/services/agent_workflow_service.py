@@ -29,12 +29,9 @@ class AgentWorkflowService:
     async def execute_workflow(
         self, agent: Agent, chat_session: ChatSession, user_message: str
     ) -> str:
-        # Retrieve the lead associated with the chat session
         lead = await self.lead_crud.get_lead_by_chat_session_id(chat_session.id)
 
         if not lead:
-            # If no lead exists, create one (this might be part of an initial workflow step)
-            # For now, we'll just raise an error or handle it as a generic chat.
             return "Error: No lead associated with this chat session."
 
         response = ""
@@ -55,17 +52,14 @@ class AgentWorkflowService:
             if step_response:
                 response += step_response
 
-            # Update the chat session's current workflow step
             chat_session.current_workflow_step = next_step_key
             await self.chat_session_crud.session.flush()
 
         if not response:
-            # If no workflow step generated a response, use a generic AI response
             response = await self.ai_service.generate_response(
                 prompt=f"User said: {user_message}. Agent persona: {agent.persona}"
             )
 
-        # Decrement message credits after generating a response
         credits_decremented = await self._decrement_message_credits(agent)
         if not credits_decremented:
             return "I'm sorry, but this agent has run out of message credits. Please top up to continue."
@@ -112,10 +106,10 @@ class AgentWorkflowService:
                     next_step_key = condition_data.get(
                         "next_step", str(int(step_key) + 1)
                     )
-                    break  # Exit after first match
+                    break
             if not response:
                 response = "I didn't understand your answer. Could you please rephrase?"
-                next_step_key = step_key  # Stay on the same step if no match
+                next_step_key = step_key
         else:
             # For other step types, execute the action directly
             response = await self._execute_action(

@@ -29,10 +29,8 @@ class RetrievalService:
         n_results: int = 5,
         collection_name: str = "knowledge_base",
     ) -> List[RelevantChunk]:
-        # 1. Generate embedding for the query
         query_embedding = self.embedding_function.embed_query(query)
 
-        # 2. Query ChromaDB
         collection = self.chroma_client.get_or_create_collection(
             name=collection_name, embedding_function=self.embedding_function
         )
@@ -48,7 +46,6 @@ class RetrievalService:
             include=["documents", "metadatas"],
         )
 
-        # Format results
         relevant_chunks = []
         if results and results["documents"] and results["metadatas"]:
             for i in range(len(results["documents"][0])):

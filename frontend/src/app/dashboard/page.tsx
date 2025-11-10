@@ -21,7 +21,12 @@ export default function DashboardPage() {
         <h2 className="text-xl font-bold mb-2">User Information</h2>
         {isLoadingUser && <p>Loading user info...</p>}
         {isErrorUser && <p className="text-red-500">Error loading user info: {errorUser?.message}</p>}
-        {user && <p>Email: {user.email}</p>}
+        {user && (
+          <>
+            <p>Email: {user.email}</p>
+            <p>Message Credits: {user.message_credits}</p>
+          </>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

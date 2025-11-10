@@ -19,7 +19,6 @@ async def create_appointment_endpoint(
     appointment_crud: AppointmentCRUDDep,
     current_user: User = Depends(CurrentUser),
 ):
-    # Ensure the appointment is for the current user
     if appointment.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -28,8 +27,8 @@ async def create_appointment_endpoint(
     return await appointment_crud.create_appointment(
         appointment=appointment,
         user_id=current_user.id,
-        agent_id=appointment.agent_id,  # Assuming agent_id is provided in schema
-        lead_id=appointment.lead_id,  # Assuming lead_id is provided in schema
+        agent_id=appointment.agent_id,
+        lead_id=appointment.lead_id,
     )
 
 

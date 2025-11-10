@@ -1,5 +1,4 @@
 from io import BytesIO
-from typing import Union
 
 from chromadb.api import ClientAPI
 from chromadb.utils import embedding_functions
@@ -15,7 +14,7 @@ class DocumentProcessorService:
         self,
         ai_service: AIService,
         chroma_client: ClientAPI,
-        embedding_model: str = settings.embedding_model,  # Using a smaller model for embeddings
+        embedding_model: str = settings.embedding_model,
     ):
         self.ai_service: AIService = ai_service
         self.chroma_client: ClientAPI = chroma_client
@@ -25,38 +24,45 @@ class DocumentProcessorService:
 
     async def process_document(
         self,
-        document_content: Union[str, bytes],
+        document_content: bytes,
         document_id: str,
         user_id: str,
         agent_id: str | None = None,
         collection_name: str = "knowledge_base",
     ):
         text_content: str
-        if isinstance(document_content, bytes):
-            # Assume PDF and extract text
+        # Attempt to decode as UTF-8 first, if it fails, assume PDF
+        try:
+            text_content = document_content.decode("utf-8")
+        except UnicodeDecodeError:
+            # If UTF-8 decoding fails, assume it's a PDF
             try:
                 pdf_reader = PdfReader(BytesIO(document_content))
                 text_content = ""
                 for page in pdf_reader.pages:
                     text_content += page.extract_text() + "\n"
             except PdfReadError:
-                raise ValueError("Could not read PDF file.")
-        else:
-            text_content = document_content
+                raise ValueError(
+                    f"Could not process document {document_id}: Not a valid UTF-8 text or PDF file."
+                )
+            except Exception as e:
+                raise ValueError(
+                    f"An unexpected error occurred during PDF processing for document {document_id}: {e}"
+                )
+        except Exception as e:
+            raise ValueError(
+                f"An unexpected error occurred while processing document {document_id}: {e}"
+            )
 
-        # 1. Chunk the text (simple split for now, can be improved)
         chunks = [
             chunk.strip() for chunk in text_content.split("\n\n") if chunk.strip()
         ]
 
-        # 2. Generate embeddings for each chunk
-        # Note: OpenAIEmbeddingFunction handles batching internally
         embeddings = self.embedding_function.embed_query(chunks)
 
-        # 3. Store chunks and embeddings in ChromaDB
         collection = self.chroma_client.get_or_create_collection(
             name=collection_name,
-            embedding_function=self.embedding_function,  # Pass the embedding function to the collection
+            embedding_function=self.embedding_function,
         )
 
         metadatas = [

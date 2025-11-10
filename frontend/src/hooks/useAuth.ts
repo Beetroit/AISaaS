@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { loginUser, registerUser, logoutUser, fetchUserMe } from "../lib/api/auth"; // Import fetchUserMe
-import { getAuthToken, removeAuthToken } from "../lib/api/core";
+import { fetchUserMe, loginUser, logoutUser, registerUser } from "../lib/api/auth";
+import { getAuthToken } from "../lib/api/core";
 import { Token, UserResponse } from "../types/auth";
 
 // --- Mutations ---
@@ -11,10 +11,10 @@ export function useLogin() {
     mutationFn: ({ email, password }) => loginUser(email, password),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["authStatus"] });
-      queryClient.invalidateQueries({ queryKey: ["userMe"] }); // Invalidate userMe query
+      queryClient.invalidateQueries({ queryKey: ["userMe"] })
       // Optionally, redirect to dashboard or update UI
       console.log("Login successful:", data);
-      // window.location.href = "/dashboard"; // Example redirect
+      // window.location.href = "/dashboard"
     },
     onError: (error) => {
       console.error("Login failed:", error.message);
@@ -42,14 +42,14 @@ export function useLogout() {
   return useMutation<void, Error, void>({
     mutationFn: () => {
       logoutUser();
-      return Promise.resolve(); // logoutUser is synchronous
+      return Promise.resolve()
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["authStatus"] });
-      queryClient.invalidateQueries({ queryKey: ["userMe"] }); // Invalidate userMe query
+      queryClient.invalidateQueries({ queryKey: ["userMe"] })
       // Optionally, redirect to home page
       console.log("Logout successful");
-      // window.location.href = "/"; // Example redirect
+      // window.location.href = "/"
     },
     onError: (error) => {
       console.error("Logout failed:", error.message);
@@ -64,7 +64,7 @@ export function useAuthStatus() {
     queryKey: ["authStatus"],
     queryFn: () => {
       const token = getAuthToken();
-      return Promise.resolve(!!token); // Returns true if token exists, false otherwise
+      return Promise.resolve(!!token)
     },
     staleTime: Infinity, // Auth status doesn't change often without explicit action
   });

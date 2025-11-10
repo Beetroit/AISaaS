@@ -1,14 +1,16 @@
 "use client";
 
 import React, { useState } from 'react';
-import { useDocuments, useUploadDocument, useRemoveDocument } from '../../../hooks/useDocuments';
+import { useDocuments, useUploadDocument, useRemoveDocument, useProcessDocuments } from '../../../hooks/useDocuments';
 import { ApiError } from '../../../lib/api/core'; // Import ApiError
 
 export default function DocumentsPage() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]); // State for selected document IDs
   const { data: documents, isLoading: isLoadingDocuments, isError: isErrorDocuments, error: errorDocuments } = useDocuments();
   const uploadDocumentMutation = useUploadDocument();
   const removeDocumentMutation = useRemoveDocument();
+  const processDocumentsMutation = useProcessDocuments(); // Use the new hook
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
@@ -40,6 +42,29 @@ export default function DocumentsPage() {
         },
         onError: (err) => {
           console.error(`Failed to delete document ${documentId}:`, err.message);
+          // TODO: Display user-friendly error message
+        },
+      });
+    }
+  };
+
+  const handleCheckboxChange = (documentId: string, isChecked: boolean) => {
+    if (isChecked) {
+      setSelectedDocumentIds((prev) => [...prev, documentId]);
+    } else {
+      setSelectedDocumentIds((prev) => prev.filter((id) => id !== documentId));
+    }
+  };
+
+  const handleProcessSelected = () => {
+    if (selectedDocumentIds.length > 0) {
+      processDocumentsMutation.mutate(selectedDocumentIds, {
+        onSuccess: () => {
+          console.log("Selected documents processing initiated.");
+          setSelectedDocumentIds([]); // Clear selection after initiating process
+        },
+        onError: (error) => {
+          console.error("Failed to initiate processing:", error.message);
           // TODO: Display user-friendly error message
         },
       });
@@ -91,7 +116,16 @@ export default function DocumentsPage() {
       </div>
 
       <div className="p-4 border rounded-md bg-white dark:bg-gray-800 shadow">
-        <h3 className="text-xl font-bold mb-2">Uploaded Documents</h3>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-xl font-bold">Uploaded Documents</h3>
+          <button
+            onClick={handleProcessSelected}
+            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+            disabled={selectedDocumentIds.length === 0 || processDocumentsMutation.isPending}
+          >
+            {processDocumentsMutation.isPending ? "Processing..." : "Process Selected"}
+          </button>
+        </div>
         {isLoadingDocuments && <p>Loading documents...</p>}
         {isErrorDocuments && (
           <p className="text-red-500">
@@ -105,7 +139,9 @@ export default function DocumentsPage() {
             <table className="min-w-full bg-white dark:bg-gray-800 rounded-lg shadow">
               <thead>
                 <tr className="w-full bg-gray-200 dark:bg-gray-700 text-left text-gray-600 dark:text-gray-300 uppercase text-sm">
+                  <th className="py-3 px-4"></th> {/* Checkbox column */}
                   <th className="py-3 px-4">Filename</th>
+                  <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-4">Uploaded At</th>
                   <th className="py-3 px-4">Actions</th>
                 </tr>
@@ -113,7 +149,25 @@ export default function DocumentsPage() {
               <tbody>
                 {documents.map((doc) => (
                   <tr key={doc.id} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700">
+                    <td className="py-3 px-4">
+                      <input
+                        type="checkbox"
+                        checked={selectedDocumentIds.includes(doc.id)}
+                        onChange={(e) => handleCheckboxChange(doc.id, e.target.checked)}
+                        className="form-checkbox h-4 w-4 text-blue-600"
+                      />
+                    </td>
                     <td className="py-3 px-4">{doc.filename}</td>
+                    <td className="py-3 px-4">
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        doc.status === 'processed' ? 'bg-green-100 text-green-800' :
+                        doc.status === 'processing' ? 'bg-yellow-100 text-yellow-800' :
+                        doc.status === 'failed' ? 'bg-red-100 text-red-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {doc.status}
+                      </span>
+                    </td>
                     <td className="py-3 px-4">{new Date(doc.created_at).toLocaleString()}</td>
                     <td className="py-3 px-4">
                       <button
@@ -131,6 +185,16 @@ export default function DocumentsPage() {
           </div>
         ) : (
           !isLoadingDocuments && <p>No documents uploaded yet.</p>
+        )}
+        {processDocumentsMutation.isError && (
+          <p className="text-red-500 text-sm mt-2">
+            Error processing documents: {processDocumentsMutation.error?.message}
+          </p>
+        )}
+        {processDocumentsMutation.isSuccess && (
+          <p className="text-green-500 text-sm mt-2">
+            Processing initiated for selected documents!
+          </p>
         )}
       </div>
     </div>

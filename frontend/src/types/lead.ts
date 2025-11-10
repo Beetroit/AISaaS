@@ -4,10 +4,12 @@ export interface LeadBase {
   name?: string | null;
   source?: string | null;
   qualification_status?: string;
-  contact_info?: Record<string, any> | null;
+  contact_info?: string | null;
 }
 
-export interface LeadCreate extends LeadBase {}
+export interface LeadCreate extends LeadBase {
+  _?: never
+}
 
 export interface LeadUpdate {
   email?: string | null;
@@ -15,7 +17,7 @@ export interface LeadUpdate {
   name?: string | null;
   source?: string | null;
   qualification_status?: string | null;
-  contact_info?: Record<string, any> | null;
+  contact_info?: string | null;
 }
 
 export interface LeadRead extends LeadBase {
@@ -23,6 +25,6 @@ export interface LeadRead extends LeadBase {
   user_id: string;
   agent_id: string;
   chat_session_id: string;
-  created_at: string; // datetime serialized as ISO string
-  updated_at: string; // datetime serialized as ISO string
+  created_at: string
+  updated_at: string
 }

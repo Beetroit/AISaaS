@@ -4,20 +4,21 @@ import json
 
 import stripe
 from fastapi import APIRouter, HTTPException, Request
+from sqlalchemy import select
 from starlette.responses import Response
 from twilio.request_validator import RequestValidator
 
 from backend.app.dependencies import (
-    CredentialServiceDep,
     AgentWorkflowServiceDep,
     ChatSessionCRUDDep,
+    CredentialServiceDep,
     LeadCRUDDep,
 )
-from backend.app.schemas.lead import LeadCreate
-from backend.app.schemas.chat_session import ChatSessionCreate
 from backend.app.models.agent import Agent
-from sqlalchemy import select
+from backend.app.schemas.chat_session import ChatSessionCreate
+from backend.app.schemas.lead import LeadCreate
 
+from backend.app.config import settings
 
 router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
 
@@ -59,7 +60,6 @@ async def twilio_whatsapp_webhook(
     if not incoming_message or not from_number:
         raise HTTPException(status_code=400, detail="Missing message body or sender.")
 
-    # Retrieve the agent
     agent_stmt = select(Agent).where(Agent.id == client_id)
     agent = (
         await lead_crud.session.execute(agent_stmt)
@@ -68,7 +68,6 @@ async def twilio_whatsapp_webhook(
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found.")
 
-    # Retrieve or create chat session
     chat_session = await chat_session_crud.get_chat_session_by_external_id(
         agent.id, from_number
     )
@@ -79,19 +78,16 @@ async def twilio_whatsapp_webhook(
         )
         chat_session = await chat_session_crud.create_chat_session(chat_session_create)
 
-    # Add user message to chat history
     await chat_session_crud.add_message_to_chat_history(
         chat_session.id, "user", incoming_message
     )
 
-    # Execute agent workflow
     agent_response = await agent_workflow_service.execute_workflow(
         agent=agent,
         chat_session=chat_session,
         user_message=incoming_message,
     )
 
-    # Add agent response to chat history
     await chat_session_crud.add_message_to_chat_history(
         chat_session.id, "agent", agent_response
     )
@@ -120,15 +116,12 @@ async def lead_intake_webhook(
             detail="Lead webhook secret not configured for this client.",
         )
 
-    # Read raw request body
     body = await request.body()
 
-    # Get signature from header
     x_signature = request.headers.get("X-Signature")
     if not x_signature:
         raise HTTPException(status_code=403, detail="X-Signature header missing.")
 
-    # Calculate expected signature (HMAC-SHA256)
     expected_signature = hmac.new(
         lead_webhook_secret.encode("utf-8"), body, hashlib.sha256
     ).hexdigest()
@@ -136,7 +129,6 @@ async def lead_intake_webhook(
     if not hmac.compare_digest(expected_signature, x_signature):
         raise HTTPException(status_code=403, detail="Invalid lead webhook signature.")
 
-    # Retrieve lead mapping configuration
     lead_mapping_config = await credential_service.get_credential(
         client_id, "lead_mapping"
     )
@@ -149,16 +141,13 @@ async def lead_intake_webhook(
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid JSON body.")
 
-    # Apply mapping
     mapped_lead_data = {}
     for webhook_field, lead_field in lead_mapping_config.get("field_map", {}).items():
         if webhook_field in webhook_data:
             mapped_lead_data[lead_field] = webhook_data[webhook_field]
 
-    # Apply default values
     mapped_lead_data.update(lead_mapping_config.get("default_values", {}))
 
-    # Create Lead object
     try:
         # Assuming user_id, agent_id, chat_session_id are available or can be derived
         # For now, using placeholders or deriving from client_id if possible
@@ -194,25 +183,19 @@ async def lead_intake_webhook(
     }
 
 
-@router.post("/stripe/{client_id}")
+@router.post("/stripe")
 async def stripe_webhook(
-    client_id: str,
     request: Request,
-    credential_service: CredentialServiceDep,
 ):
-    stripe_webhook_secret = await credential_service.get_webhook_secret(
-        client_id, "stripe_webhook_secret"
-    )
+    stripe_webhook_secret = settings.stripe_webhook_secret
 
     if not stripe_webhook_secret:
         raise HTTPException(
-            status_code=403,
-            detail="Stripe webhook secret not configured for this client.",
+            status_code=500,
+            detail="Stripe webhook secret not configured in application settings.",
         )
 
-    # Read raw request body
     body = await request.body()
-    # Get signature from header
     sig_header = request.headers.get("stripe-signature")
 
     if not sig_header:
@@ -223,13 +206,10 @@ async def stripe_webhook(
             payload=body, sig_header=sig_header, secret=stripe_webhook_secret
         )
     except ValueError as e:
-        # Invalid payload
         raise HTTPException(status_code=400, detail=f"Invalid payload: {e}")
     except stripe.SignatureVerificationError as e:
-        # Invalid signature
         raise HTTPException(status_code=403, detail=f"Invalid signature: {e}")
 
-    # Handle the event
     if event["type"] == "customer.subscription.created":
         # TODO: Handle subscription creation
         print(f"Subscription created: {event['data']['object']}")

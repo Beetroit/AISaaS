@@ -16,35 +16,6 @@ async def create_lead_endpoint(
     lead_crud: LeadCRUDDep,
     current_user: User = Depends(CurrentUser),
 ):
-    # Note: chat_session_id and agent_id would typically come from the context
-    # where the lead is created (e.g., a webhook or an agent interaction).
-    # For a direct API call, these might need to be provided or derived.
-    # For simplicity here, we'll use placeholders or assume they are part of LeadCreate
-    # if the frontend is creating a lead directly.
-    # However, the backend LeadCreate schema does not include agent_id or chat_session_id.
-    # The CRUD method requires them. This needs to be reconciled.
-    # For now, let's assume a simplified create that might be used internally or
-    # that these fields are passed in a way that the CRUD can handle.
-    # Given the current LeadCreate schema, we cannot directly pass agent_id and chat_session_id.
-    # Let's adjust the create_lead_endpoint to reflect the current schema and CRUD.
-    # The CRUD's create_lead expects user_id, agent_id, chat_session_id.
-    # The LeadCreate schema only has email, phone, name, source, qualification_status, contact_info.
-    # This means a direct POST to /leads/ from frontend would need to provide these.
-    # For now, I will make a simplified version that might need adjustment.
-
-    # Reconciling: The LeadCreate schema does not contain agent_id or chat_session_id.
-    # The LeadCRUD.create_lead method *requires* them.
-    # This implies that leads are not typically created directly via this endpoint
-    # without an associated agent/chat_session context.
-    # For the purpose of exposing a basic CRUD, I will temporarily make agent_id and chat_session_id
-    # optional in the endpoint, but this is a design inconsistency that should be noted.
-    # A better approach would be to have a LeadCreateWithContext schema.
-
-    # For now, let's assume agent_id and chat_session_id are passed as query parameters or
-    # are part of a more complex LeadCreate schema if the frontend is to create them.
-    # Given the current backend structure, direct creation via this endpoint is tricky.
-    # I will implement GET, PUT, DELETE first, as they are clearer.
-    # For POST, I will raise an HTTPException for now, indicating it needs context.
     raise HTTPException(
         status_code=status.HTTP_501_NOT_IMPLEMENTED,
         detail="Lead creation via this endpoint requires agent_id and chat_session_id context.",
@@ -58,7 +29,6 @@ async def get_leads_endpoint(
     skip: int = 0,
     limit: int = 100,
 ):
-    # Filter leads by current user's ID
     return await lead_crud.get_leads_by_user_id(
         user_id=current_user.id, skip=skip, limit=limit
     )

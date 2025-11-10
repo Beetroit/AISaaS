@@ -1,20 +1,18 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, HTTPException, status
 
 from backend.app.dependencies import (
-    get_current_user,
     AgentCRUDDep,
     CredentialServiceDep,
+    CurrentUser,
 )
-from backend.app.models.user import User
 from backend.app.schemas.agent import (
     AgentCreate,
     AgentRead,
     AgentUpdate,
     TwilioCredentials,
 )
-
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
@@ -23,7 +21,7 @@ router = APIRouter(prefix="/agents", tags=["agents"])
 async def create_agent_endpoint(
     agent: AgentCreate,
     agent_crud: AgentCRUDDep,
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser,
 ):
     return await agent_crud.create_agent(agent=agent, user_id=current_user.id)
 
@@ -32,7 +30,7 @@ async def create_agent_endpoint(
 async def get_agent_endpoint(
     agent_id: str,
     agent_crud: AgentCRUDDep,
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser,
 ):
     db_agent = await agent_crud.get_agent(agent_id=agent_id, user_id=current_user.id)
     if db_agent is None:
@@ -44,7 +42,7 @@ async def get_agent_endpoint(
 async def get_agent_credits_endpoint(
     agent_id: str,
     agent_crud: AgentCRUDDep,
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser,
 ):
     db_agent = await agent_crud.get_agent(agent_id=agent_id, user_id=current_user.id)
     if db_agent is None:
@@ -57,7 +55,7 @@ async def add_agent_credits_endpoint(
     agent_id: str,
     amount: int,
     agent_crud: AgentCRUDDep,
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser,
 ):
     db_agent = await agent_crud.add_agent_credits(
         agent_id=agent_id, user_id=current_user.id, amount=amount
@@ -70,7 +68,7 @@ async def add_agent_credits_endpoint(
 @router.get("/", response_model=List[AgentRead])
 async def get_agents_endpoint(
     agent_crud: AgentCRUDDep,
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser,
     skip: int = 0,
     limit: int = 100,
 ):
@@ -82,7 +80,7 @@ async def update_agent_endpoint(
     agent_id: str,
     agent: AgentUpdate,
     agent_crud: AgentCRUDDep,
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser,
 ):
     db_agent = await agent_crud.update_agent(
         agent_id=agent_id, agent=agent, user_id=current_user.id
@@ -96,7 +94,7 @@ async def update_agent_endpoint(
 async def delete_agent_endpoint(
     agent_id: str,
     agent_crud: AgentCRUDDep,
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser,
 ):
     success = await agent_crud.delete_agent(agent_id=agent_id, user_id=current_user.id)
     if not success:
@@ -110,13 +108,12 @@ async def save_twilio_credentials_endpoint(
     twilio_credentials: TwilioCredentials,
     agent_crud: AgentCRUDDep,
     credential_service: CredentialServiceDep,
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser,
 ):
     db_agent = await agent_crud.get_agent(agent_id=agent_id, user_id=current_user.id)
     if db_agent is None:
         raise HTTPException(status_code=404, detail="Agent not found")
 
-    # Save Twilio credentials using the CredentialService
     await credential_service.create_credential(
         user_id=current_user.id,
         credential_type=f"twilio_credentials_{agent_id}",  # Unique type per agent
@@ -130,7 +127,7 @@ async def save_twilio_credentials_endpoint(
 async def generate_lead_webhook_url_endpoint(
     agent_id: str,
     agent_crud: AgentCRUDDep,
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser,
 ):
     db_agent = await agent_crud.get_agent(agent_id=agent_id, user_id=current_user.id)
     if db_agent is None:
@@ -146,7 +143,7 @@ async def generate_lead_webhook_url_endpoint(
 async def get_lead_webhook_url_endpoint(
     agent_id: str,
     agent_crud: AgentCRUDDep,
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser,
 ):
     db_agent = await agent_crud.get_agent(agent_id=agent_id, user_id=current_user.id)
     if db_agent is None:

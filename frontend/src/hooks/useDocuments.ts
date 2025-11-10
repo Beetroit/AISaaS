@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { uploadDocument, removeDocument, getDocuments } from "../lib/api/documents";
+import { getDocuments, processSelectedDocuments, removeDocument, uploadDocument } from "../lib/api/documents";
 import { KnowledgeBaseDocumentResponse } from "../types/document";
 
 // --- Queries ---
@@ -22,7 +22,7 @@ export function useUploadDocument() {
   >({
     mutationFn: (files: File[]) => uploadDocument(files),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["documents"] }); // Invalidate to refetch list
+      queryClient.invalidateQueries({ queryKey: ["documents"] })
       console.log("Documents uploaded successfully.");
     },
   });
@@ -33,8 +33,19 @@ export function useRemoveDocument() {
   return useMutation<{ message: string }, Error, string>({
     mutationFn: (documentId: string) => removeDocument(documentId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["documents"] }); // Invalidate to refetch list
+      queryClient.invalidateQueries({ queryKey: ["documents"] })
       console.log("Document removed successfully.");
+    },
+  });
+}
+
+export function useProcessDocuments() {
+  const queryClient = useQueryClient();
+  return useMutation<{ message: string; document_ids: string[] }, Error, string[]>({
+    mutationFn: (documentIds: string[]) => processSelectedDocuments(documentIds),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["documents"] })
+      console.log("Documents processing initiated.");
     },
   });
 }

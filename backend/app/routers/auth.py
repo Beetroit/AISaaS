@@ -15,7 +15,6 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 
 router = APIRouter()
 
-# Google OAuth2 Scopes
 GOOGLE_SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
 

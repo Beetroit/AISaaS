@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"; // Default to localhost if not set
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"
 console.log("Frontend API Base URL:", API_BASE_URL);
 
 // Custom Error class to include status code
@@ -26,7 +26,7 @@ export function removeAuthToken() {
 
 interface ApiConfig {
   method?: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
-  body?: any;
+  body?: object | FormData;
   isFormData?: boolean;
 }
 
@@ -35,7 +35,7 @@ export async function callApi<T>(
   config?: ApiConfig
 ): Promise<T> {
   const { method = "GET", body, isFormData = false } = config || {};
-  const token = getAuthToken(); // Use the helper function
+  const token = getAuthToken()
   const headers: HeadersInit = {};
 
   if (token) {
@@ -46,10 +46,10 @@ export async function callApi<T>(
 
   if (body) {
     if (isFormData) {
-      requestBody = body; // body is already FormData
+      requestBody = body as FormData
     } else {
       headers["Content-Type"] = "application/json";
-      requestBody = JSON.stringify(body);
+      requestBody = JSON.stringify(body as object)
     }
   }
 
@@ -61,15 +61,15 @@ export async function callApi<T>(
 
   if (response.status === 401) {
     console.error("Unauthorized: Token might be expired or invalid. Removing token.");
-    removeAuthToken(); // Remove invalid token
+    removeAuthToken()
     // Optionally, trigger a global logout event or redirect
-    // window.location.href = '/login'; // Example redirect
-    throw new ApiError("Unauthorized", response.status); // Throw ApiError
+    // window.location.href = '/login'
+    throw new ApiError("Unauthorized", response.status)
   }
 
   if (!response.ok) {
     const errorData = await response.json();
-    throw new ApiError(errorData.detail || "API call failed", response.status); // Throw ApiError
+    throw new ApiError(errorData.detail || "API call failed", response.status)
   }
 
   return response.json() as Promise<T>;

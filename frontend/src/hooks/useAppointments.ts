@@ -1,10 +1,10 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  createAppointment,
-  getAppointment,
-  getAppointments,
-  updateAppointment,
-  deleteAppointment,
+    createAppointment,
+    deleteAppointment,
+    getAppointment,
+    getAppointments,
+    updateAppointment,
 } from "../lib/api/appointments";
 import { AppointmentCreate, AppointmentRead, AppointmentUpdate } from "../types/appointment";
 
@@ -32,7 +32,7 @@ export function useCreateAppointment() {
   return useMutation<AppointmentRead, Error, AppointmentCreate>({
     mutationFn: (appointment: AppointmentCreate) => createAppointment(appointment),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["appointments"] }); // Invalidate all appointments list
+      queryClient.invalidateQueries({ queryKey: ["appointments"] })
     },
   });
 }
@@ -47,8 +47,8 @@ export function useUpdateAppointment() {
     mutationFn: ({ appointmentId, appointment }) =>
       updateAppointment(appointmentId, appointment),
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["appointments"] }); // Invalidate all appointments list
-      queryClient.invalidateQueries({ queryKey: ["appointment", data.id] }); // Invalidate specific appointment
+      queryClient.invalidateQueries({ queryKey: ["appointments"] })
+      queryClient.invalidateQueries({ queryKey: ["appointment", data.id] })
     },
   });
 }
@@ -58,7 +58,7 @@ export function useDeleteAppointment() {
   return useMutation<void, Error, string>({
     mutationFn: (appointmentId: string) => deleteAppointment(appointmentId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["appointments"] }); // Invalidate all appointments list
+      queryClient.invalidateQueries({ queryKey: ["appointments"] })
     },
   });
 }

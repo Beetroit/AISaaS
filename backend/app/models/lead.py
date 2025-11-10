@@ -15,7 +15,6 @@ if TYPE_CHECKING:
     from backend.app.models.chat_session import ChatSession
     from backend.app.models.user import User
 
-# Custom table prefix for ULID generation
 __custom_lead_table_prefix = "lead_"
 
 
@@ -33,9 +32,7 @@ class Lead(Base):
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id"))
     agent_id: Mapped[str] = mapped_column(ForeignKey("agents.id"))
     chat_session_id: Mapped[str] = mapped_column(ForeignKey("chat_sessions.id"))
-    qualification_status: Mapped[str] = mapped_column(
-        String(50), default="unqualified"
-    )  # e.g., unqualified, qualified, rejected
+    qualification_status: Mapped[str] = mapped_column(String(50), default="unqualified")
     contact_info: Mapped[dict[str, str]] = mapped_column(JSON, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 

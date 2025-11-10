@@ -26,3 +26,13 @@ export async function removeDocument(documentId: string): Promise<{ message: str
     method: "DELETE",
   });
 }
+
+export async function processSelectedDocuments(documentIds: string[]): Promise<{ message: string; document_ids: string[] }> {
+  return callApi<{ message: string; document_ids: string[] }>(
+    "/documents/process-selected/",
+    {
+      method: "POST",
+      body: documentIds,
+    }
+  );
+}

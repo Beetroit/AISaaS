@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     google_client_secret: str
     google_redirect_uri: str
     stripe_customer_portal_return_url: str
+    stripe_webhook_secret: str
 
 
 settings = Settings.model_validate({})

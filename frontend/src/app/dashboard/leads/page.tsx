@@ -1,10 +1,12 @@
 "use client";
 
 import React from 'react';
+import { useRouter } from 'next/navigation'; // Import useRouter
 import { useLeads, useDeleteLead } from '../../../hooks/useLeads';
-import { ApiError } from '../../../lib/api/core'; // Import ApiError
+import { ApiError } from '../../../lib/api/core';
 
 export default function LeadsPage() {
+  const router = useRouter(); // Initialize useRouter
   const { data: leads, isLoading, isError, error } = useLeads();
   const deleteLeadMutation = useDeleteLead();
 
@@ -21,6 +23,10 @@ export default function LeadsPage() {
         },
       });
     }
+  };
+
+  const handleEditClick = (leadId: string) => {
+    router.push(`/dashboard/leads/${leadId}`); // Navigate to lead details page
   };
 
   if (isLoading) {
@@ -68,7 +74,13 @@ export default function LeadsPage() {
                   <td className="py-3 px-4">{lead.phone_number || 'N/A'}</td>
                   <td className="py-3 px-4">{lead.name || 'N/A'}</td>
                   <td className="py-3 px-4">{lead.qualification_status || 'unqualified'}</td>
-                  <td className="py-3 px-4">
+                  <td className="py-3 px-4 flex space-x-2">
+                    <button
+                      onClick={() => handleEditClick(lead.id)}
+                      className="bg-yellow-500 text-white px-3 py-1 rounded-md text-sm hover:bg-yellow-600"
+                    >
+                      Edit
+                    </button>
                     <button
                       onClick={() => handleDeleteLead(lead.id)}
                       className="bg-red-500 text-white px-3 py-1 rounded-md text-sm hover:bg-red-600"

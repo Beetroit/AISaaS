@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from 'react';
-import Link from 'next/link'; // Using Link for navigation
-import AuthModal from '../components/AuthModal'; // Import AuthModal
+import Link from 'next/link';
+import { useState } from 'react';
+import AuthModal from '../components/AuthModal';
 
 export default function LandingPage() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -41,7 +41,6 @@ export default function LandingPage() {
             Iniciar Sesión
           </button>
           <button className="md:hidden text-gray-800">
-            {/* Icono de Hamburguesa (lucide/menu) */}
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="24"
@@ -122,19 +121,19 @@ export default function LandingPage() {
                   <div
                     className="bg-blue-600 text-white p-3 rounded-xl max-w-xs text-right shadow-md"
                   >
-                    ¿Cuál es el precio del modelo Pro y qué
-                    incluye?
+                    &quot;¿Cuál es el precio del modelo Pro y qué
+                    incluye?&quot;
                   </div>
                 </div>
                 <div className="flex justify-start">
                   <div
                     className="bg-blue-100 p-3 rounded-xl max-w-xs text-left shadow-sm"
                   >
-                    El modelo Pro incluye el paquete de 2500
+                    &quot;El modelo Pro incluye el paquete de 2500
                     créditos (mensajes) y la Tabla de Gestión de
                     Leads PRO. Toda la información está
-                    detallada en el PDF "Precios 2025" que
-                    subiste.
+                    detallada en el PDF &quot;Precios 2025&quot; que
+                    subiste.&quot;
                   </div>
                 </div>
               </div>
@@ -556,9 +555,9 @@ export default function LandingPage() {
             <blockquote
               className="text-2xl italic font-serif leading-relaxed text-blue-100"
             >
-              "El 72% de los consumidores percibe las marcas con
+              &quot;El 72% de los consumidores percibe las marcas con
               atención IA como más innovadoras, lo que mejora el
-              posicionamiento competitivo."
+              posicionamiento competitivo.&quot;
             </blockquote>
           </div>
         </div>
@@ -651,7 +650,7 @@ export default function LandingPage() {
                       >
                     </td>
                     <td className="px-3 py-3">
-                      "¿Hay descuento por volumen?"
+                      &quot;¿Hay descuento por volumen?&quot;
                     </td>
                   </tr>
                   <tr className="bg-white border-b">
@@ -667,7 +666,7 @@ export default function LandingPage() {
                       >
                     </td>
                     <td className="px-3 py-3">
-                      "¿Qué archivos subo?"
+                      &quot;¿Qué archivos subo?&quot;
                     </td>
                   </tr>
                   <tr className="bg-white border-b">
@@ -683,7 +682,7 @@ export default function LandingPage() {
                       >
                     </td>
                     <td className="px-3 py-3">
-                      "Necesito 5.000 mensajes."
+                      &quot;Necesito 5.000 mensajes.&quot;
                     </td>
                   </tr>
                 </tbody>
@@ -708,9 +707,9 @@ export default function LandingPage() {
               <p
                 className="text-2xl font-serif text-gray-800 mb-6 leading-relaxed"
               >
-                "La subida de archivos es revolucionaria. Nuestro
+                &quot;La subida de archivos es revolucionaria. Nuestro
                 bot contestó correctamente sobre un producto nicho
-                en segundos. ¡Increíble la precisión!"
+                en segundos. ¡Increíble la precisión!&quot;
               </p>
               <div className="flex items-center space-x-3">
                 <div
@@ -736,9 +735,9 @@ export default function LandingPage() {
               <p
                 className="text-2xl font-serif text-gray-800 mb-6 leading-relaxed"
               >
-                "Necesitábamos un modelo por créditos y HelixAI fue
+                &quot;Necesitábamos un modelo por créditos y HelixAI fue
                 la solución perfecta. Control total de nuestro gasto
-                y una IA super inteligente."
+                y una IA super inteligente.&quot;
               </p>
               <div className="flex items-center space-x-3">
                 <div
@@ -764,9 +763,9 @@ export default function LandingPage() {
               <p
                 className="text-2xl font-serif text-gray-800 mb-6 leading-relaxed"
               >
-                "Teníamos 10.000 mensajes sin contestar. Con 5.000
+                &quot;Teníamos 10.000 mensajes sin contestar. Con 5.000
                 créditos de HelixAI, solucionamos el cuello de
-                botella en 48 horas. Simplemente funciona."
+                botella en 48 horas. Simplemente funciona.&quot;
               </p>
               <div className="flex items-center space-x-3">
                 <div

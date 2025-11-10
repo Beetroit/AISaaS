@@ -1,4 +1,4 @@
-.PHONY: start stop migrate logs build
+.PHONY: start stop migrate logs build lint clean seed
 
 start:
 	@echo "Starting Docker Compose services..."
@@ -28,8 +28,12 @@ lint:
 	@echo "Running type check..."
 	uvx ty check backend migrations
 
-	@echo "Running Frontend Type Check"
-	cd frontend && npx tsc --noEmit --skipLibCheck && cd ..
+	@echo "Running Frontend Linting and Type Check"
+	cd frontend && npx eslint --fix && npx tsc --noEmit --skipLibCheck && cd ..
+
+seed:
+	@echo "Seeding Stripe products and prices..."
+	uv run backend/app/seed_stripe.py
 
 clean:
 	@echo "Cleaning up Docker Compose services..."

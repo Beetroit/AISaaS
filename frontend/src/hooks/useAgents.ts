@@ -1,14 +1,14 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  addAgentCredits,
   createAgent,
+  deleteAgent,
   getAgent,
   getAgentCredits,
-  addAgentCredits,
   getAgents,
-  updateAgent,
-  deleteAgent,
-  saveTwilioCredentials,
   getLeadWebhookUrl,
+  saveTwilioCredentials,
+  updateAgent,
 } from "../lib/api/agents";
 import { AgentCreate, AgentRead, AgentUpdate, TwilioCredentials } from "../types/agent";
 
@@ -52,7 +52,7 @@ export function useCreateAgent() {
   return useMutation<AgentRead, Error, AgentCreate>({
     mutationFn: (agent: AgentCreate) => createAgent(agent),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["agents"] }); // Invalidate all agents list
+      queryClient.invalidateQueries({ queryKey: ["agents"] })
     },
   });
 }
@@ -62,8 +62,8 @@ export function useUpdateAgent() {
   return useMutation<AgentRead, Error, { agentId: string; agent: AgentUpdate }>({
     mutationFn: ({ agentId, agent }) => updateAgent(agentId, agent),
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["agents"] }); // Invalidate all agents list
-      queryClient.invalidateQueries({ queryKey: ["agent", data.id] }); // Invalidate specific agent
+      queryClient.invalidateQueries({ queryKey: ["agents"] })
+      queryClient.invalidateQueries({ queryKey: ["agent", data.id] })
     },
   });
 }
@@ -73,7 +73,7 @@ export function useDeleteAgent() {
   return useMutation<void, Error, string>({
     mutationFn: (agentId: string) => deleteAgent(agentId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["agents"] }); // Invalidate all agents list
+      queryClient.invalidateQueries({ queryKey: ["agents"] })
     },
   });
 }
@@ -83,8 +83,8 @@ export function useAddAgentCredits() {
   return useMutation<AgentRead, Error, { agentId: string; amount: number }>({
     mutationFn: ({ agentId, amount }) => addAgentCredits(agentId, amount),
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["agentCredits", data.id] }); // Invalidate specific agent credits
-      queryClient.invalidateQueries({ queryKey: ["agent", data.id] }); // Invalidate specific agent
+      queryClient.invalidateQueries({ queryKey: ["agentCredits", data.id] })
+      queryClient.invalidateQueries({ queryKey: ["agent", data.id] })
     },
   });
 }
@@ -94,7 +94,7 @@ export function useSaveTwilioCredentials() {
   return useMutation<AgentRead, Error, { agentId: string; credentials: TwilioCredentials }>({
     mutationFn: ({ agentId, credentials }) => saveTwilioCredentials(agentId, credentials),
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["agent", data.id] }); // Invalidate specific agent
+      queryClient.invalidateQueries({ queryKey: ["agent", data.id] })
     },
   });
 }

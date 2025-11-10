@@ -1,5 +1,6 @@
+from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel
-from typing import Optional, Dict, Any, List
 
 
 class StripeProduct(BaseModel):
@@ -12,12 +13,12 @@ class StripeProduct(BaseModel):
 
 class StripePrice(BaseModel):
     id: str
-    product: str  # ID of the product this price is for
+    product: str
     active: bool
-    unit_amount: Optional[int] = None  # Amount in cents
+    unit_amount: Optional[int] = None
     currency: str
-    type: str  # e.g., 'recurring', 'one_time'
-    recurring: Optional[Dict[str, Any]] = None  # Details for recurring prices
+    type: str
+    recurring: Optional[Dict[str, Any]] = None
     metadata: Dict[str, Any]
 
 

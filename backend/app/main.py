@@ -2,14 +2,13 @@ import logging
 import traceback
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from scalar_fastapi.scalar_fastapi import get_scalar_api_reference  # type: ignore
 
-from backend.app.dependencies import get_current_user
-from backend.app.models.user import User
+from backend.app.dependencies import CurrentUser
 from backend.app.schemas import user as schemas_user
 
 from .routers import agents, appointments, auth, documents, leads, stripe_api, webhooks
@@ -23,7 +22,6 @@ logging.basicConfig(
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup event
     yield
 
 
@@ -33,6 +31,7 @@ origins = [
     "http://localhost",
     "http://localhost:3001",
     "http://localhost:3002",
+    "https://aisaasfe.t.lum.tools",
 ]
 
 app.add_middleware(
@@ -91,12 +90,13 @@ app.include_router(leads.router, prefix="/leads", tags=["leads"])
 
 
 @app.get("/users/me", response_model=schemas_user.UserResponse)
-async def read_users_me(current_user: User = Depends(get_current_user)):
+async def read_users_me(current_user: CurrentUser):
     agent_ids = [agent.id for agent in current_user.agents]
     return schemas_user.UserResponse(
         id=current_user.id,
         email=current_user.email,
         is_active=current_user.is_active,
+        message_credits=current_user.message_credits,
         agent_ids=agent_ids,
     )
 

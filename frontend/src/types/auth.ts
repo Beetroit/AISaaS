@@ -7,5 +7,6 @@ export interface UserResponse {
   id: string;
   email: string;
   is_active: boolean;
+  message_credits: number
   agent_ids: string[];
 }

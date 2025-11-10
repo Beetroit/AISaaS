@@ -3,12 +3,15 @@ export interface KnowledgeBaseDocumentBase {
   content_hash: string;
   user_id: string;
   agent_id?: string | null;
+  status: string;
 }
 
-export interface KnowledgeBaseDocumentCreate extends KnowledgeBaseDocumentBase {}
+export interface KnowledgeBaseDocumentCreate extends KnowledgeBaseDocumentBase {
+  _?: never
+}
 
 export interface KnowledgeBaseDocumentResponse extends KnowledgeBaseDocumentBase {
   id: string;
-  created_at: string; // datetime serialized as ISO string
-  updated_at: string; // datetime serialized as ISO string
+  created_at: string
+  updated_at: string
 }
