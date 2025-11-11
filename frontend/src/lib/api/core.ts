@@ -67,6 +67,11 @@ export async function callApi<T>(
     throw new ApiError("Unauthorized", response.status)
   }
 
+  // Handle 404 specifically for GET requests by returning null
+  if (method === "GET" && response.status === 404) {
+    return null as T; // Return null for not found resources
+  }
+
   if (!response.ok) {
     const errorData = await response.json();
     throw new ApiError(errorData.detail || "API call failed", response.status)

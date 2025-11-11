@@ -18,6 +18,11 @@ router = APIRouter()
 GOOGLE_SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
 
+@router.get("/users/me/credits", response_model=int)
+async def get_my_credits(current_user: CurrentUser):
+    return current_user.message_credits
+
+
 @router.post("/token", response_model=Token)
 async def login_for_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],

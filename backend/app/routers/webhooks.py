@@ -13,10 +13,12 @@ from backend.app.dependencies import (
     ChatSessionCRUDDep,
     CredentialServiceDep,
     LeadCRUDDep,
+    MessageCRUDDep,  # New import
 )
 from backend.app.models.agent import Agent
 from backend.app.schemas.chat_session import ChatSessionCreate
 from backend.app.schemas.lead import LeadCreate
+from backend.app.schemas.message import MessageCreate  # New import
 
 from backend.app.config import settings
 
@@ -31,6 +33,7 @@ async def twilio_whatsapp_webhook(
     agent_workflow_service: AgentWorkflowServiceDep,
     chat_session_crud: ChatSessionCRUDDep,
     lead_crud: LeadCRUDDep,
+    message_crud: MessageCRUDDep,  # New dependency
 ):
     twilio_auth_token = await credential_service.get_webhook_secret(
         client_id, "twilio_webhook_secret"
@@ -78,8 +81,10 @@ async def twilio_whatsapp_webhook(
         )
         chat_session = await chat_session_crud.create_chat_session(chat_session_create)
 
-    await chat_session_crud.add_message_to_chat_history(
-        chat_session.id, "user", incoming_message
+    await message_crud.create_message(
+        MessageCreate(
+            chat_session_id=chat_session.id, role="user", content=incoming_message
+        )
     )
 
     agent_response = await agent_workflow_service.execute_workflow(
@@ -88,8 +93,10 @@ async def twilio_whatsapp_webhook(
         user_message=incoming_message,
     )
 
-    await chat_session_crud.add_message_to_chat_history(
-        chat_session.id, "agent", agent_response
+    await message_crud.create_message(
+        MessageCreate(
+            chat_session_id=chat_session.id, role="agent", content=agent_response
+        )
     )
 
     # For now, just acknowledge receipt with agent's response

@@ -13,7 +13,17 @@ from backend.app.config import logger
 from backend.app.dependencies import CurrentUser
 from backend.app.schemas import user as schemas_user
 
-from .routers import agents, appointments, auth, documents, leads, stripe_api, webhooks
+from .routers import (
+    agents,
+    appointments,
+    auth,
+    credentials,  # New import
+    documents,
+    leads,
+    stripe_api,
+    webhooks,
+    reports,
+)
 
 
 @asynccontextmanager
@@ -83,6 +93,8 @@ app.include_router(stripe_api.router)
 app.include_router(agents.router)
 app.include_router(appointments.router, prefix="/appointments", tags=["appointments"])
 app.include_router(leads.router, prefix="/leads", tags=["leads"])
+app.include_router(reports.router, prefix="/reports", tags=["reports"])
+app.include_router(credentials.router)  # New include
 
 
 @app.get("/users/me", response_model=schemas_user.UserResponse)
@@ -100,3 +112,8 @@ async def read_users_me(current_user: CurrentUser):
 @app.get("/scalar", include_in_schema=False)
 async def scalar_html() -> HTMLResponse:
     return get_scalar_api_reference(openapi_url=str(app.openapi_url), title=app.title)
+
+
+@app.get("/")
+async def root() -> dict[str, str]:
+    return {"message": "Hello World"}

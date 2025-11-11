@@ -15,6 +15,7 @@ from backend.app.crud.appointment_crud import AppointmentCRUD
 from backend.app.crud.chat_session_crud import ChatSessionCRUD, select
 from backend.app.crud.knowledge_base_document_crud import KnowledgeBaseDocumentCRUD
 from backend.app.crud.lead_crud import LeadCRUD
+from backend.app.crud.message_crud import MessageCRUD
 from backend.app.crud.user_crud import UserCRUD
 from backend.app.database import AsyncSessionLocal
 from backend.app.models.user import User
@@ -74,6 +75,10 @@ def get_lead_crud(session: AsyncSession = Depends(get_db)) -> LeadCRUD:
     return LeadCRUD(session)
 
 
+def get_message_crud(session: AsyncSession = Depends(get_db)) -> MessageCRUD:
+    return MessageCRUD(session)
+
+
 def get_knowledge_base_document_crud(
     session: AsyncSession = Depends(get_db),
 ) -> KnowledgeBaseDocumentCRUD:
@@ -123,6 +128,7 @@ def get_agent_workflow_service(
     retrieval_service: RetrievalService = Depends(get_retrieval_service),
     lead_crud: LeadCRUD = Depends(get_lead_crud),
     chat_session_crud: ChatSessionCRUD = Depends(get_chat_session_crud),
+    message_crud: MessageCRUD = Depends(get_message_crud),
 ) -> AgentWorkflowService:
     return AgentWorkflowService(
         ai_service=ai_service,
@@ -130,6 +136,7 @@ def get_agent_workflow_service(
         retrieval_service=retrieval_service,
         lead_crud=lead_crud,
         chat_session_crud=chat_session_crud,
+        message_crud=message_crud,
     )
 
 
@@ -163,6 +170,7 @@ AgentCRUDDep = Annotated[AgentCRUD, Depends(get_agent_crud)]
 ChatSessionCRUDDep = Annotated[ChatSessionCRUD, Depends(get_chat_session_crud)]
 AppointmentCRUDDep = Annotated[AppointmentCRUD, Depends(get_appointment_crud)]
 LeadCRUDDep = Annotated[LeadCRUD, Depends(get_lead_crud)]
+MessageCRUDDep = Annotated[MessageCRUD, Depends(get_message_crud)]
 KnowledgeBaseDocumentCRUDDep = Annotated[
     KnowledgeBaseDocumentCRUD, Depends(get_knowledge_base_document_crud)
 ]

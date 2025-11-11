@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useAgents, useAddAgentCredits } from "../../hooks/useAgents";
+import { useUserCredits } from "../../hooks/useUser"; // Import useUserCredits
 
 interface AddCreditsModalProps {
   isOpen: boolean;
@@ -11,16 +12,25 @@ interface AddCreditsModalProps {
 export default function AddCreditsModal({ isOpen, onClose }: AddCreditsModalProps) {
   const [selectedAgentId, setSelectedAgentId] = useState("");
   const [amount, setAmount] = useState(0);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null); // State for local error messages
 
   const { data: agents } = useAgents();
+  const { data: userCredits, isLoading: isLoadingUserCredits } = useUserCredits(); // Fetch user credits
   const addAgentCreditsMutation = useAddAgentCredits();
 
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage(null); // Clear previous errors
+
     if (!selectedAgentId || amount <= 0) {
-      alert("Please select an agent and enter a valid amount.");
+      setErrorMessage("Please select an agent and enter a valid amount.");
+      return;
+    }
+
+    if (userCredits !== undefined && amount > userCredits) {
+      setErrorMessage("Insufficient credits in your balance.");
       return;
     }
 
@@ -33,8 +43,9 @@ export default function AddCreditsModal({ isOpen, onClose }: AddCreditsModalProp
           setAmount(0);
         },
         onError: (error) => {
+          // Backend error message will be more specific now
+          setErrorMessage(error.message || "Failed to add credits.");
           console.error("Failed to add credits:", error.message);
-          // TODO: Display user-friendly error message
         },
       }
     );
@@ -56,6 +67,13 @@ export default function AddCreditsModal({ isOpen, onClose }: AddCreditsModalProp
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {isLoadingUserCredits ? (
+            <p>Loading user credits...</p>
+          ) : (
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Your available balance: {userCredits !== undefined ? userCredits : 'N/A'} credits
+            </p>
+          )}
           <div>
             <label htmlFor="agent" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               Select Agent
@@ -96,7 +114,12 @@ export default function AddCreditsModal({ isOpen, onClose }: AddCreditsModalProp
           >
             {addAgentCreditsMutation.isPending ? "Adding Credits..." : "Add Credits"}
           </button>
-          {addAgentCreditsMutation.isError && (
+          {errorMessage && (
+            <p className="text-red-500 text-sm mt-2">
+              Error: {errorMessage}
+            </p>
+          )}
+          {addAgentCreditsMutation.isError && !errorMessage && ( // Only show mutation error if no local error
             <p className="text-red-500 text-sm mt-2">
               Error: {addAgentCreditsMutation.error?.message}
             </p>

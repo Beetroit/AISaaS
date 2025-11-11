@@ -1,10 +1,7 @@
-from __future__ import annotations
-
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Dict, List
 
 from sqlalchemy import DateTime, ForeignKey, String
-from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from ulid import ULID
 
@@ -14,6 +11,7 @@ from backend.app.database import Base
 if TYPE_CHECKING:
     from backend.app.models.agent import Agent
     from backend.app.models.lead import Lead
+    from backend.app.models.message import Message
     from backend.app.models.user import User
 
 
@@ -41,13 +39,13 @@ class ChatSession(Base):
     current_workflow_step: Mapped[str | None] = mapped_column(
         String(255), nullable=True
     )
-    chat_history: Mapped[List[Dict[str, Any]]] = mapped_column(
-        JSON, default=list, nullable=False
-    )
 
-    user: Mapped[User] = relationship("User", back_populates="chat_sessions")
-    agent: Mapped[Agent] = relationship("Agent", back_populates="chat_sessions")
-    leads: Mapped[list[Lead]] = relationship("Lead", back_populates="chat_session")
+    user: Mapped["User"] = relationship("User", back_populates="chat_sessions")
+    agent: Mapped["Agent"] = relationship("Agent", back_populates="chat_sessions")
+    leads: Mapped[list["Lead"]] = relationship("Lead", back_populates="chat_session")
+    messages: Mapped[List["Message"]] = relationship(
+        "Message", back_populates="chat_session", order_by="Message.created_at"
+    )
 
     def __repr__(self) -> str:
         return f"<ChatSession(id='{self.id}', user_id='{self.user_id}', agent_id='{self.agent_id}')>"
@@ -60,5 +58,5 @@ class ChatSession(Base):
             "start_time": self.start_time.isoformat() if self.start_time else None,
             "end_time": self.end_time.isoformat() if self.end_time else None,
             "status": self.status,
-            "chat_history": self.chat_history,
+            "messages": [message.to_dict() for message in self.messages],
         }

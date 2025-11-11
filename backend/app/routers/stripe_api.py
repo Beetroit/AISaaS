@@ -61,14 +61,14 @@ async def create_stripe_subscription(
                 status_code=500,
                 detail="Stripe subscription created but no latest_invoice found.",
             )
-        if not subscription.latest_invoice.payment_intent:
+        if not subscription.latest_invoice.payment_intent:  # type: ignore
             raise HTTPException(
                 status_code=500,
                 detail="Stripe subscription created but no payment_intent found.",
             )
         return {
             "subscription_id": subscription.id,
-            "client_secret": subscription.latest_invoice.payment_intent.client_secret,
+            "client_secret": subscription.latest_invoice.payment_intent.client_secret,  # type: ignore
         }
     except stripe.StripeError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -80,6 +80,7 @@ async def get_customer_portal_session(
     current_user: CurrentUser,
     credential_service: CredentialServiceDep,
 ):
+    logger.info(f"DEBUG: prev_url = {prev_url}")
     stripe_customer_id = await credential_service.get_stripe_customer_id(
         current_user.id
     )
@@ -155,6 +156,7 @@ async def create_checkout_session(
     stripe_customer_id = await credential_service.get_stripe_customer_id(
         current_user.id
     )
+    logger.info(f"DEBUG: prev_url = {prev_url}")
 
     if not stripe_customer_id:
         try:

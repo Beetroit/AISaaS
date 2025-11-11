@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import AddAgentModal from '../../../components/agents/AddAgentModal';
-import AddCreditsModal from '../../../components/agents/AddCreditsModal'; // Import AddCreditsModal
+import AddCreditsModal from '../../../components/agents/AddCreditsModal';
 import { useAgents, useDeleteAgent } from '../../../hooks/useAgents';
 import { AgentRead } from '../../../types/agent';
 
@@ -12,7 +12,7 @@ export default function AgentsPage() {
   const { data: agents, isLoading, isError, error } = useAgents();
   const deleteAgentMutation = useDeleteAgent();
   const [isAddAgentModalOpen, setIsAddAgentModalOpen] = useState(false);
-  const [isAddCreditsModalOpen, setIsAddCreditsModalOpen] = useState(false); // State for AddCreditsModal
+  const [isAddCreditsModalOpen, setIsAddCreditsModalOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -99,7 +99,7 @@ export default function AgentsPage() {
           ))}
         </div>
       ) : (
-        <p>No agents found. Click "Add New Agent" to create one.</p>
+        <p>No agents found. Click &quot;Add New Agent&quot; to create one.</p>
       )}
 
       {isAddAgentModalOpen && (

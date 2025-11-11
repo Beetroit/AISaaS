@@ -1,5 +1,6 @@
 import { callApi } from "./core";
 import { AgentCreate, AgentRead, AgentUpdate, TwilioCredentials } from "../../types/agent";
+import { LeadMappingConfig } from "../../types/lead"; // Import LeadMappingConfig
 
 export async function createAgent(agent: AgentCreate): Promise<AgentRead> {
   return callApi<AgentRead>("/agents/", {
@@ -51,4 +52,18 @@ export async function saveTwilioCredentials(
 
 export async function getLeadWebhookUrl(agentId: string): Promise<string> {
   return callApi<string>(`/agents/${agentId}/lead-webhook`);
+}
+
+export async function getLeadMapping(agentId: string): Promise<LeadMappingConfig> {
+  return callApi<LeadMappingConfig>(`/agents/${agentId}/lead-mapping`);
+}
+
+export async function saveLeadMapping(
+  agentId: string,
+  config: LeadMappingConfig
+): Promise<LeadMappingConfig> {
+  return callApi<LeadMappingConfig>(`/agents/${agentId}/lead-mapping`, {
+    method: "POST",
+    body: config,
+  });
 }

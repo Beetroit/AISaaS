@@ -1,7 +1,9 @@
-from typing import Optional, List, Dict, Any
+from typing import Optional, List
 from datetime import datetime
 
 from pydantic import BaseModel
+
+from backend.app.schemas.message import MessageRead
 
 
 class ChatSessionBase(BaseModel):
@@ -12,7 +14,6 @@ class ChatSessionBase(BaseModel):
     end_time: Optional[datetime] = None
     status: Optional[str] = "active"
     current_workflow_step: Optional[str] = None
-    chat_history: List[Dict[str, Any]] = []
 
 
 class ChatSessionCreate(ChatSessionBase):
@@ -23,13 +24,13 @@ class ChatSessionUpdate(BaseModel):
     external_id: Optional[str] = None
     end_time: Optional[datetime] = None
     status: Optional[str] = None
-    chat_history: Optional[List[Dict[str, Any]]] = None
 
 
 class ChatSessionRead(ChatSessionBase):
     id: str
     created_at: datetime
     updated_at: datetime
+    messages: List[MessageRead] = []
 
     class Config:
         from_attributes = True

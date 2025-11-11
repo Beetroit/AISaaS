@@ -1,8 +1,8 @@
-from datetime import datetime, timezone
 from typing import List, Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from backend.app.models.chat_session import ChatSession
 from backend.app.schemas.chat_session import ChatSessionCreate, ChatSessionUpdate
@@ -21,6 +21,17 @@ class ChatSessionCRUD:
 
     async def get_chat_session(self, chat_session_id: str) -> Optional[ChatSession]:
         stmt = select(ChatSession).where(ChatSession.id == chat_session_id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_chat_session_with_messages(
+        self, chat_session_id: str
+    ) -> Optional[ChatSession]:
+        stmt = (
+            select(ChatSession)
+            .options(selectinload(ChatSession.messages))
+            .where(ChatSession.id == chat_session_id)
+        )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -52,21 +63,6 @@ class ChatSessionCRUD:
         if db_chat_session:
             for key, value in chat_session.model_dump(exclude_unset=True).items():
                 setattr(db_chat_session, key, value)
-            await self.session.flush()
-
-        return db_chat_session
-
-    async def add_message_to_chat_history(
-        self, chat_session_id: str, sender: str, message: str
-    ) -> Optional[ChatSession]:
-        db_chat_session = await self.get_chat_session(chat_session_id)
-        if db_chat_session:
-            new_message = {
-                "sender": sender,
-                "message": message,
-                "timestamp": str(datetime.now(timezone.utc)),
-            }
-            db_chat_session.chat_history.append(new_message)
             await self.session.flush()
 
         return db_chat_session

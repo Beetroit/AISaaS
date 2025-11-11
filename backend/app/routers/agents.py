@@ -13,6 +13,9 @@ from backend.app.schemas.agent import (
     AgentUpdate,
     TwilioCredentials,
 )
+from backend.app.schemas.lead_mapping import (
+    LeadMappingConfig,
+)  # Import LeadMappingConfig
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
@@ -61,7 +64,10 @@ async def add_agent_credits_endpoint(
         agent_id=agent_id, user_id=current_user.id, amount=amount
     )
     if db_agent is None:
-        raise HTTPException(status_code=404, detail="Agent not found")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to add credits. Agent not found or insufficient user credits.",
+        )
     return db_agent
 
 
@@ -151,3 +157,57 @@ async def get_lead_webhook_url_endpoint(
 
     webhook_url = f"/webhooks/lead/{agent_id}"
     return webhook_url
+
+
+@router.get("/{agent_id}/lead-mapping", response_model=LeadMappingConfig)
+async def get_lead_mapping_endpoint(
+    agent_id: str,
+    agent_crud: AgentCRUDDep,
+    credential_service: CredentialServiceDep,
+    current_user: CurrentUser,
+) -> LeadMappingConfig:
+    db_agent = await agent_crud.get_agent(agent_id=agent_id, user_id=current_user.id)
+    if db_agent is None:
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    mapping_config = await credential_service.get_credential(
+        user_id=current_user.id, credential_type=f"lead_mapping_{agent_id}"
+    )
+    if mapping_config:
+        return LeadMappingConfig(**mapping_config)
+    return LeadMappingConfig()  # Return empty config if not found
+
+
+@router.post("/{agent_id}/lead-mapping", response_model=LeadMappingConfig)
+async def save_lead_mapping_endpoint(
+    agent_id: str,
+    config: LeadMappingConfig,
+    agent_crud: AgentCRUDDep,
+    credential_service: CredentialServiceDep,
+    current_user: CurrentUser,
+) -> LeadMappingConfig:
+    db_agent = await agent_crud.get_agent(agent_id=agent_id, user_id=current_user.id)
+    if db_agent is None:
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    existing_config = await credential_service.get_credential(
+        user_id=current_user.id, credential_type=f"lead_mapping_{agent_id}"
+    )
+
+    if existing_config:
+        updated_credential = await credential_service.update_credential(
+            user_id=current_user.id,
+            credential_type=f"lead_mapping_{agent_id}",
+            new_data=config.model_dump(),
+        )
+    else:
+        updated_credential = await credential_service.create_credential(
+            user_id=current_user.id,
+            credential_type=f"lead_mapping_{agent_id}",
+            data=config.model_dump(),
+        )
+
+    if not updated_credential:
+        raise HTTPException(status_code=500, detail="Failed to save lead mapping.")
+
+    return config

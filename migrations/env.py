@@ -14,6 +14,8 @@ from backend.app.models.user import User  # noqa: F401
 from backend.app.models.chat_session import ChatSession  # noqa: F401
 from backend.app.models.knowledge_base_document import KnowledgeBaseDocument  # noqa: F401
 from backend.app.models.lead import Lead  # noqa: F401
+from backend.app.models.message import Message  # noqa: F401
+
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.models.agent import Agent
+from backend.app.models.user import User  # Import User model
 from backend.app.schemas.agent import AgentCreate, AgentUpdate
 
 
@@ -53,8 +54,29 @@ class AgentCRUD:
         self, agent_id: str, user_id: str, amount: int
     ) -> Optional[Agent]:
         db_agent = await self.get_agent(agent_id, user_id)
-        if db_agent:
-            db_agent.message_credits += amount
-            await self.session.flush()
+        if not db_agent:
+            return None
+
+        # Fetch the user
+        user_stmt = select(User).where(User.id == user_id)
+        user = (await self.session.execute(user_stmt)).scalar_one_or_none()
+
+        if not user:
+            # This should ideally not happen if user_id is valid from CurrentUser
+            return None
+
+        if user.message_credits < amount:
+            # Insufficient credits in user's balance
+            return None
+
+        # Deduct from user's balance
+        user.message_credits -= amount
+        self.session.add(user)
+
+        # Add to agent's balance
+        db_agent.message_credits += amount
+        self.session.add(db_agent)
+
+        await self.session.flush()  # Flush both changes
 
         return db_agent

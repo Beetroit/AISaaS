@@ -12,6 +12,7 @@ import {
   Calendar,
   CreditCard,
   LogOut,
+  Plug, // New import for Integrations icon
 } from "lucide-react"; // Using lucide-react for icons
 
 export default function DashboardShell({
@@ -99,6 +100,15 @@ export default function DashboardShell({
               >
                 <CreditCard className="mr-3 h-5 w-5" />
                 Billing
+              </Link>
+            </li>
+            <li className="mb-2">
+              <Link
+                href="/dashboard/integrations"
+                className="flex items-center p-2 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-200"
+              >
+                <Plug className="mr-3 h-5 w-5" />
+                Integrations
               </Link>
             </li>
           </ul>

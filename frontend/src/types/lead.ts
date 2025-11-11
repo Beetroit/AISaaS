@@ -28,3 +28,8 @@ export interface LeadRead extends LeadBase {
   created_at: string
   updated_at: string
 }
+
+export interface LeadMappingConfig {
+  field_map: { [key: string]: string };
+  default_values: { [key: string]: string }; // Assuming default values are strings for input
+}

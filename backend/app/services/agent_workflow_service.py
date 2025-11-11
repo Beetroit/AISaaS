@@ -2,10 +2,12 @@ from typing import Any, Dict, Optional
 
 from backend.app.crud.chat_session_crud import ChatSessionCRUD
 from backend.app.crud.lead_crud import LeadCRUD
+from backend.app.crud.message_crud import MessageCRUD
 from backend.app.models.agent import Agent
 from backend.app.models.chat_session import ChatSession
 from backend.app.models.lead import Lead
 from backend.app.schemas.lead import LeadCreate, LeadUpdate
+from backend.app.schemas.message import MessageCreate
 from backend.app.services.ai_service import AIService
 from backend.app.services.google_calendar_service import GoogleCalendarService
 from backend.app.services.retrieval_service import RetrievalService
@@ -16,12 +18,14 @@ class AgentWorkflowService:
         self,
         lead_crud: LeadCRUD,
         chat_session_crud: ChatSessionCRUD,
+        message_crud: MessageCRUD,
         ai_service: AIService,
         google_calendar_service: GoogleCalendarService,
         retrieval_service: RetrievalService,
     ):
         self.lead_crud = lead_crud
         self.chat_session_crud = chat_session_crud
+        self.message_crud = message_crud
         self.ai_service = ai_service
         self.google_calendar_service = google_calendar_service
         self.retrieval_service = retrieval_service
@@ -56,10 +60,20 @@ class AgentWorkflowService:
             await self.chat_session_crud.session.flush()
 
         if not response:
-            response = await self.ai_service.generate_response(
+            # If no workflow step generated a response, use a generic AI response
+            ai_response_content = await self.ai_service.generate_response(
                 prompt=f"User said: {user_message}. Agent persona: {agent.persona}"
             )
+            response = ai_response_content
+            await self.message_crud.create_message(
+                MessageCreate(
+                    chat_session_id=chat_session.id,
+                    role="agent",
+                    content=ai_response_content,
+                )
+            )
 
+        # Decrement message credits after generating a response
         credits_decremented = await self._decrement_message_credits(agent)
         if not credits_decremented:
             return "I'm sorry, but this agent has run out of message credits. Please top up to continue."
