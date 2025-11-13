@@ -24,8 +24,10 @@ from backend.app.services.ai_service import AIService
 from backend.app.services.credential_service import CredentialService
 from backend.app.services.document_processor_service import DocumentProcessorService
 from backend.app.services.google_calendar_service import GoogleCalendarService
+from backend.app.services.messaging_service import MessagingService
 from backend.app.services.openai_service import OpenAIService
 from backend.app.services.retrieval_service import RetrievalService
+from backend.app.services.twilio_service import TwilioService
 from backend.app.security import is_token_blacklisted
 
 chroma_client = chromadb.HttpClient(
@@ -94,6 +96,16 @@ def get_openai_service() -> OpenAIService:
     return OpenAIService()
 
 
+def get_twilio_service() -> TwilioService:
+    return TwilioService()
+
+
+def get_messaging_service(
+    twilio_service: TwilioService = Depends(get_twilio_service),
+) -> MessagingService:
+    return twilio_service
+
+
 def get_document_processor_service(
     ai_service: AIService = Depends(get_openai_service),
     chroma_client: Any = Depends(get_chroma_client),
@@ -130,6 +142,8 @@ def get_agent_workflow_service(
     lead_crud: LeadCRUD = Depends(get_lead_crud),
     chat_session_crud: ChatSessionCRUD = Depends(get_chat_session_crud),
     message_crud: MessageCRUD = Depends(get_message_crud),
+    credential_service: CredentialService = Depends(get_credential_service),
+    messaging_service: MessagingService = Depends(get_messaging_service),
 ) -> AgentWorkflowService:
     return AgentWorkflowService(
         ai_service=ai_service,
@@ -138,6 +152,8 @@ def get_agent_workflow_service(
         lead_crud=lead_crud,
         chat_session_crud=chat_session_crud,
         message_crud=message_crud,
+        credential_service=credential_service,
+        messaging_service=messaging_service,
     )
 
 

@@ -16,7 +16,7 @@ export interface CredentialResponse {
   id: string;
   user_id: string;
   credential_type: string;
-  credentials_data: TwilioCredentials | LeadWebhookSecretData | Record<string, any>
+  credentials_data: TwilioCredentials | LeadWebhookSecretData
   created_at: string;
   updated_at: string;
 }

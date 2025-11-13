@@ -21,6 +21,9 @@ class Credential(Base):
     )
     user_id: Mapped[str] = mapped_column(String(50), ForeignKey("users.id"), index=True)
     credential_type: Mapped[str] = mapped_column(String(100), index=True)
+    phone_number: Mapped[str | None] = mapped_column(
+        String(50), index=True, unique=True, nullable=True
+    )
     credentials_data: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
 
     user: Mapped["User"] = relationship("User", back_populates="credentials")

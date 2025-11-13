@@ -9,7 +9,9 @@ from backend.app.models.lead import Lead
 from backend.app.schemas.lead import LeadCreate, LeadUpdate
 from backend.app.schemas.message import MessageCreate
 from backend.app.services.ai_service import AIService
+from backend.app.services.credential_service import CredentialService
 from backend.app.services.google_calendar_service import GoogleCalendarService
+from backend.app.services.messaging_service import MessagingService
 from backend.app.services.retrieval_service import RetrievalService
 
 
@@ -22,6 +24,8 @@ class AgentWorkflowService:
         ai_service: AIService,
         google_calendar_service: GoogleCalendarService,
         retrieval_service: RetrievalService,
+        credential_service: CredentialService,
+        messaging_service: MessagingService,
     ):
         self.lead_crud = lead_crud
         self.chat_session_crud = chat_session_crud
@@ -29,6 +33,8 @@ class AgentWorkflowService:
         self.ai_service = ai_service
         self.google_calendar_service = google_calendar_service
         self.retrieval_service = retrieval_service
+        self.credential_service = credential_service
+        self.messaging_service = messaging_service
 
     async def execute_workflow(
         self, agent: Agent, chat_session: ChatSession, user_message: str
@@ -76,9 +82,28 @@ class AgentWorkflowService:
         # Decrement message credits after generating a response
         credits_decremented = await self._decrement_message_credits(agent)
         if not credits_decremented:
-            return "I'm sorry, but this agent has run out of message credits. Please top up to continue."
+            # Even if credits run out, we should inform the user.
+            final_response = "I'm sorry, but this agent has run out of message credits. Please top up to continue."
+        else:
+            final_response = response.strip()
 
-        return response.strip()
+        # Send the response via the messaging service
+        twilio_credentials = await self.credential_service.get_credential(
+            agent.user_id, "twilio"
+        )
+        if twilio_credentials:
+            await self.messaging_service.send_message(
+                to=chat_session.external_id,  # The user's phone number
+                body=final_response,
+                creds=twilio_credentials,
+            )
+        else:
+            # Log that credentials are not configured for this agent
+            print(
+                f"Warning: Messaging credentials not configured for agent {agent.id}. Cannot send message."
+            )
+
+        return final_response
 
     async def _process_workflow_step(
         self,

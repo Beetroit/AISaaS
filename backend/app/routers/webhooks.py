@@ -24,31 +24,48 @@ from backend.app.schemas.message import MessageCreate
 router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
 
 
-@router.post("/twilio/{client_id}")
+@router.post("/twilio")
 async def twilio_whatsapp_webhook(
-    client_id: str,
     request: Request,
     credential_service: CredentialServiceDep,
     agent_workflow_service: AgentWorkflowServiceDep,
     chat_session_crud: ChatSessionCRUDDep,
     lead_crud: LeadCRUDDep,
-    message_crud: MessageCRUDDep,  # New dependency
+    message_crud: MessageCRUDDep,
 ):
-    twilio_auth_token = await credential_service.get_webhook_secret(
-        client_id, "twilio_webhook_secret"
-    )
-
-    if not twilio_auth_token:
-        raise HTTPException(
-            status_code=403,
-            detail="Twilio webhook secret not configured for this client.",
-        )
-
-    validator = RequestValidator(twilio_auth_token)
-
+    """
+    Handles incoming WhatsApp messages from Twilio.
+    This endpoint is multi-tenant and routes messages to the correct agent
+    based on the 'To' phone number.
+    """
     form_params = await request.form()
     form_params_dict = {key: value for key, value in form_params.items()}
+    to_number = form_params_dict.get("To")
 
+    if not to_number:
+        raise HTTPException(
+            status_code=400, detail="Missing 'To' phone number in webhook data."
+        )
+
+    # Find the agent associated with this Twilio phone number
+    agent = await credential_service.get_agent_by_twilio_phone_number(to_number)
+    if not agent:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No agent found for Twilio phone number: {to_number}",
+        )
+
+    # Now that we have the agent, get their specific Twilio auth token for validation
+    twilio_credentials = await credential_service.get_credential(
+        agent.user_id, "twilio"
+    )
+    if not twilio_credentials or "twilio_auth_token" not in twilio_credentials:
+        raise HTTPException(
+            status_code=403,
+            detail="Twilio credentials are not configured for this agent.",
+        )
+
+    validator = RequestValidator(twilio_credentials["twilio_auth_token"])
     request_url = str(request.url)
 
     if not validator.validate(
@@ -62,14 +79,6 @@ async def twilio_whatsapp_webhook(
     if not incoming_message or not from_number:
         raise HTTPException(status_code=400, detail="Missing message body or sender.")
 
-    agent_stmt = select(Agent).where(Agent.id == client_id)
-    agent = (
-        await lead_crud.session.execute(agent_stmt)
-    ).scalar_one_or_none()  # Using lead_crud.session for agent retrieval
-
-    if not agent:
-        raise HTTPException(status_code=404, detail="Agent not found.")
-
     chat_session = await chat_session_crud.get_chat_session_by_external_id(
         agent.id, from_number
     )
@@ -79,6 +88,21 @@ async def twilio_whatsapp_webhook(
             user_id=agent.user_id, agent_id=agent.id, external_id=from_number
         )
         chat_session = await chat_session_crud.create_chat_session(chat_session_create)
+
+    # Ensure a lead exists for this chat session
+    lead = await lead_crud.get_lead_by_chat_session_id(chat_session.id)
+    if not lead:
+        lead_create = LeadCreate(
+            name="New Lead from WhatsApp",
+            contact_info={"phone": from_number},
+            qualification_status="new",
+        )
+        await lead_crud.create_lead(
+            lead=lead_create,
+            user_id=agent.user_id,
+            agent_id=agent.id,
+            chat_session_id=chat_session.id,
+        )
 
     await message_crud.create_message(
         MessageCreate(
@@ -98,9 +122,6 @@ async def twilio_whatsapp_webhook(
         )
     )
 
-    # For now, just acknowledge receipt with agent's response
-    # In a real scenario, you'd use Twilio's messaging API to send this response
-    # For this example, we'll return it in a TwiML-like format
     twiml_response = f"<Response><Message>{agent_response}</Message></Response>"
     return Response(content=twiml_response, media_type="application/xml")
 

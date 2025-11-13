@@ -48,6 +48,21 @@ class CredentialService:
         )
         return result.scalars().first()
 
+    async def get_agent_by_twilio_phone_number(
+        self, phone_number: str
+    ) -> Optional[Agent]:
+        """Finds an agent by their configured Twilio phone number using an indexed query."""
+        stmt = (
+            select(Agent)
+            .join(Credential, Agent.user_id == Credential.user_id)
+            .where(
+                Credential.credential_type == "twilio",
+                Credential.phone_number == phone_number,
+            )
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def get_credential(
         self, user_id: str, credential_type: str
     ) -> Optional[Dict[str, Any]]:
@@ -84,6 +99,14 @@ class CredentialService:
                 credentials_data=encrypted_data,
             )
             self.db.add(credential)
+
+        # Populate the top-level phone_number field for Twilio credentials
+        if credential_type == "twilio":
+            credential.phone_number = data.get("twilio_phone_number")
+        else:
+            # Ensure the field is null for other credential types
+            credential.phone_number = None
+
         await self.db.flush()
         return credential
 
