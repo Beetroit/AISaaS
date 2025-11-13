@@ -8,7 +8,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-// import { Label } from "@/components/ui/label"; // Label is used via FormLabel, direct import not needed
+// import { Label } from "@/components/ui/label";
 import {
   Form,
   FormControl,
@@ -23,7 +23,7 @@ import {
   getTwilioCredentials,
   deleteTwilioCredentials,
   TwilioCredentials,
-  TwilioCredentialResponse, // New import
+  TwilioCredentialResponse,
 } from "@/lib/api/credentials";
 import { ApiError } from "@/lib/api/core";
 

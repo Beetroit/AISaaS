@@ -1,10 +1,11 @@
+import secrets
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from google_auth_oauthlib.flow import Flow
 
-from backend.app.config import settings
+from backend.app.config import redis_client, settings
 from backend.app.dependencies import CurrentUser, DBSession, UserCRUDDep
 from backend.app.schemas import user as user_schema
 from backend.app.schemas.token import Token
@@ -54,16 +55,29 @@ async def register_user(
 
 @router.get("/google/authorize")
 async def google_authorize(current_user: CurrentUser):
-    flow = Flow.from_client_secrets_file(
-        "client_secret.json",  # This file needs to be created/managed securely
+    state = secrets.token_urlsafe(32)
+    await redis_client.setex(f"oauth_state:{current_user.id}", 300, state)
+
+    flow = Flow.from_client_config(
+        client_config={
+            "web": {
+                "client_id": settings.google_client_id,
+                "client_secret": settings.google_client_secret,
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+                "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+                "redirect_uris": [settings.google_redirect_uri],
+                "javascript_origins": [],
+            }
+        },
         scopes=GOOGLE_SCOPES,
         redirect_uri=settings.google_redirect_uri,
     )
-    authorization_url, state = flow.authorization_url(
-        access_type="offline", include_granted_scopes="true"
+    authorization_url, _ = flow.authorization_url(
+        access_type="offline",
+        include_granted_scopes="true",
+        state=state,
     )
-    # Store state in session or database associated with current_user for verification
-    # For now, we'll just redirect
     return Response(headers={"Location": authorization_url}, status_code=302)
 
 
@@ -74,9 +88,32 @@ async def google_callback(
     db: DBSession,
     current_user: CurrentUser,
 ):
-    # TODO: Verify state parameter to prevent CSRF attacks
-    flow = Flow.from_client_secrets_file(
-        "client_secret.json",  # This file needs to be created/managed securely
+    expected_state = await redis_client.get(f"oauth_state:{current_user.id}")
+    if expected_state:
+        await redis_client.delete(f"oauth_state:{current_user.id}")
+        if expected_state.decode("utf-8") != state:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid state parameter.",
+            )
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired state parameter.",
+        )
+
+    flow = Flow.from_client_config(
+        client_config={
+            "web": {
+                "client_id": settings.google_client_id,
+                "client_secret": settings.google_client_secret,
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+                "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+                "redirect_uris": [settings.google_redirect_uri],
+                "javascript_origins": [],
+            }
+        },
         scopes=GOOGLE_SCOPES,
         redirect_uri=settings.google_redirect_uri,
     )

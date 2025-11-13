@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.models.agent import Agent
-from backend.app.models.user import User  # Import User model
+from backend.app.models.user import User
 from backend.app.schemas.agent import AgentCreate, AgentUpdate
 
 

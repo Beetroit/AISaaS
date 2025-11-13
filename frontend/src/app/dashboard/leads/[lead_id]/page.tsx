@@ -29,7 +29,7 @@ export default function LeadDetailsPage() {
       name: name || undefined,
       source: source || undefined,
       qualification_status: qualificationStatus || undefined,
-      contact_info: contactInfo || undefined, // Now contact_info is string | undefined
+      contact_info: contactInfo || undefined,
     };
 
     updateLeadMutation.mutate(

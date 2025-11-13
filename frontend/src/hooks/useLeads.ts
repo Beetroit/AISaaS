@@ -15,7 +15,7 @@ export function useLead(leadId: string) {
   return useQuery<LeadRead, Error>({
     queryKey: ["lead", leadId],
     queryFn: () => getLead(leadId),
-    enabled: !!leadId, // Only run query if leadId is available
+    enabled: !!leadId,
   });
 }
 

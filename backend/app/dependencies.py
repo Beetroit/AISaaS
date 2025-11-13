@@ -26,6 +26,7 @@ from backend.app.services.document_processor_service import DocumentProcessorSer
 from backend.app.services.google_calendar_service import GoogleCalendarService
 from backend.app.services.openai_service import OpenAIService
 from backend.app.services.retrieval_service import RetrievalService
+from backend.app.security import is_token_blacklisted
 
 chroma_client = chromadb.HttpClient(
     host=settings.chroma_host, port=settings.chroma_port
@@ -153,18 +154,32 @@ async def get_current_user(
             token, settings.secret_key, algorithms=[settings.algorithm]
         )
         user_id: str = payload.get("sub")
+        jti: str = payload.get("jti")
+
+        if user_id is None or jti is None:
+            raise credentials_exception
+
+        if await is_token_blacklisted(jti):
+            raise credentials_exception
+
     except JWTError:
         raise credentials_exception
+
     user = await db.execute(
         select(User).options(selectinload(User.agents)).filter(User.id == user_id)
     )
     user = user.scalars().first()
     if user is None:
         raise credentials_exception
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User is inactive",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     return user
 
 
-# Type annotations for dependencies
 UserCRUDDep = Annotated[UserCRUD, Depends(get_user_crud)]
 AgentCRUDDep = Annotated[AgentCRUD, Depends(get_agent_crud)]
 ChatSessionCRUDDep = Annotated[ChatSessionCRUD, Depends(get_chat_session_crud)]

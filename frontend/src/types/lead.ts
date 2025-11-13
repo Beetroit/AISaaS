@@ -31,5 +31,5 @@ export interface LeadRead extends LeadBase {
 
 export interface LeadMappingConfig {
   field_map: { [key: string]: string };
-  default_values: { [key: string]: string }; // Assuming default values are strings for input
+  default_values: { [key: string]: string }
 }

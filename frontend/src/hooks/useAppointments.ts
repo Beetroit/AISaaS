@@ -21,7 +21,7 @@ export function useAppointment(appointmentId: string) {
   return useQuery<AppointmentRead, Error>({
     queryKey: ["appointment", appointmentId],
     queryFn: () => getAppointment(appointmentId),
-    enabled: !!appointmentId, // Only run query if appointmentId is available
+    enabled: !!appointmentId,
   });
 }
 

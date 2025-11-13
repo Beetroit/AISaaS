@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useState } from "react";
+import { useAgents } from "../../hooks/useAgents";
 import { useCreateAppointment } from "../../hooks/useAppointments";
+import { useLeads } from "../../hooks/useLeads";
 import { AppointmentCreate } from "../../types/appointment";
-import { useAgents } from "../../hooks/useAgents"; // To select an agent
-import { useLeads } from "../../hooks/useLeads"; // To select a lead
 
 interface AddAppointmentModalProps {
   isOpen: boolean;
@@ -19,8 +19,8 @@ export default function AddAppointmentModal({ isOpen, onClose }: AddAppointmentM
   const [selectedLeadId, setSelectedLeadId] = useState("");
 
   const createAppointmentMutation = useCreateAppointment();
-  const { data: agents } = useAgents(); // Fetch agents to populate dropdown
-  const { data: leads } = useLeads(); // Fetch leads to populate dropdown
+  const { data: agents } = useAgents()
+  const { data: leads } = useLeads()
 
   if (!isOpen) return null;
 
@@ -35,7 +35,7 @@ export default function AddAppointmentModal({ isOpen, onClose }: AddAppointmentM
       appointment_time: new Date(appointmentTime),
       status,
       notes: notes || undefined,
-      user_id: "current_user_id_placeholder", // This should be dynamically set on the backend or passed from context
+      user_id: "current_user_id_placeholder",
       agent_id: selectedAgentId,
       lead_id: selectedLeadId,
     };

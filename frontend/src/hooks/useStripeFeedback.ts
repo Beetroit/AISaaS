@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
 import { useFeedback } from "@/context/FeedbackContext";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect } from "react";
 
 export function useStripeFeedback() {
   const searchParams = useSearchParams();
@@ -11,7 +11,7 @@ export function useStripeFeedback() {
 
   useEffect(() => {
     const stripeStatus = searchParams.get("stripe_status");
-    const errorMessage = searchParams.get("error_message"); // Assuming backend might send a message
+    const errorMessage = searchParams.get("error_message")
 
     if (stripeStatus) {
       if (stripeStatus === "success") {
@@ -27,9 +27,9 @@ export function useStripeFeedback() {
 
       const timer = setTimeout(() => {
         hideFeedback();
-      }, 3000); // Hide after 3 seconds
+      }, 3000)
 
-      return () => clearTimeout(timer); // Cleanup the timer
+      return () => clearTimeout(timer)
     }
   }, [searchParams, router, showFeedback, hideFeedback]);
 }

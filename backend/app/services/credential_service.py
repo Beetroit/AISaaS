@@ -1,4 +1,4 @@
-import secrets  # Moved from inside method
+import secrets
 from typing import Any, Dict, Optional
 
 from fastapi import HTTPException, status

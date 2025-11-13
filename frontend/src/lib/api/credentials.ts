@@ -1,4 +1,4 @@
-import { callApi, ApiError } from "./core";
+import { ApiError, callApi } from "./core";
 
 export interface TwilioCredentials {
   account_sid: string;
@@ -16,7 +16,7 @@ export interface CredentialResponse {
   id: string;
   user_id: string;
   credential_type: string;
-  credentials_data: TwilioCredentials | LeadWebhookSecretData | Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  credentials_data: TwilioCredentials | LeadWebhookSecretData | Record<string, any>
   created_at: string;
   updated_at: string;
 }
@@ -45,7 +45,7 @@ export async function getTwilioCredentials(): Promise<TwilioCredentialResponse |
     return await callApi<TwilioCredentialResponse>("/credentials/twilio");
   } catch (error: unknown) {
     if (error instanceof ApiError && error.statusCode === 404) {
-      return null; // No credentials found
+      return null
     }
     throw error;
   }
@@ -62,7 +62,7 @@ export async function getLeadWebhookUrl(): Promise<CredentialResponse | null> {
     return await callApi<CredentialResponse>("/credentials/lead-webhook");
   } catch (error: unknown) { // Changed from any
     if (error instanceof ApiError && error.statusCode === 404) {
-      return null; // No webhook URL found
+      return null
     }
     throw error;
   }

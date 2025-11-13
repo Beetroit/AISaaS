@@ -1,19 +1,19 @@
 "use client";
 
-import React, { useState } from "react";
 import {
   AlertDialog,
+  AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
   AlertDialogDescription,
   AlertDialogFooter,
-  AlertDialogCancel,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useSaveLeadMapping, useGetLeadMapping } from "../../hooks/useAgents"; // Corrected relative import
-import { LeadMappingConfig } from "../../types/lead"; // Corrected relative import
+import { Input } from "@/components/ui/input";
+import React, { useState } from "react";
+import { useGetLeadMapping, useSaveLeadMapping } from "../../hooks/useAgents";
+import { LeadMappingConfig } from "../../types/lead";
 
 interface LeadMappingModalProps {
   isOpen: boolean;

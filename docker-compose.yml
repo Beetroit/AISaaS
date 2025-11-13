@@ -10,19 +10,22 @@ services:
     volumes:
       - ./backend:/app/backend:rw
       - ./.env:/app/.env:ro
-      - ./uploads:/app/uploads:rw # Optional: if you need uploads directory for development
+      - ./uploads:/app/uploads:rw
     env_file:
       - ./.env
     depends_on:
       - db
       - chroma
-    user: "1000:1000" # Use your host user ID to avoid permission issues
+      - redis
+    user: "1000:1000"
     environment:
       - PYTHONUNBUFFERED=1
       - PYTHONDONTWRITEBYTECODE=1
       - PYTHONPATH=/app/backend
       - UVICORN_RELOAD_DIRS=/app/backend
       - WATCHFILES_FORCE_POLLING=true
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
     networks:
       - aisaas
 
@@ -51,6 +54,15 @@ services:
     networks:
       - aisaas
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - aisaas_redis_data:/data
+    networks:
+      - aisaas
+
   frontend:
     build:
       context: ./frontend
@@ -74,7 +86,7 @@ services:
 volumes:
   aisaas_postgres_data:
   aisaas_chroma_data:
-
+  aisaas_redis_data:
 
 networks:
   aisaas:

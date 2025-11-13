@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState } from 'react';
+import { useState } from 'react';
+import AddAppointmentModal from '../../../components/appointments/AddAppointmentModal';
+import EditAppointmentModal from '../../../components/appointments/EditAppointmentModal';
 import { useAppointments, useDeleteAppointment } from '../../../hooks/useAppointments';
-import AddAppointmentModal from '../../../components/appointments/AddAppointmentModal'; // Import AddAppointmentModal
-import EditAppointmentModal from '../../../components/appointments/EditAppointmentModal'; // Import EditAppointmentModal
-import { AppointmentRead } from '../../../types/appointment'; // Import AppointmentRead type
+import { AppointmentRead } from '../../../types/appointment';
 
 export default function AppointmentsPage() {
   const { data: appointments, isLoading, isError, error } = useAppointments();

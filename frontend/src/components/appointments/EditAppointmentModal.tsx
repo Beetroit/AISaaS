@@ -1,15 +1,15 @@
 "use client";
 
 import React, { useState } from "react";
+import { useAgents } from "../../hooks/useAgents";
 import { useUpdateAppointment } from "../../hooks/useAppointments";
+import { useLeads } from "../../hooks/useLeads";
 import { AppointmentRead, AppointmentUpdate } from "../../types/appointment";
-import { useAgents } from "../../hooks/useAgents"; // To select an agent
-import { useLeads } from "../../hooks/useLeads"; // To select a lead
 
 interface EditAppointmentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  appointment: AppointmentRead; // The appointment data to edit
+  appointment: AppointmentRead
 }
 
 export default function EditAppointmentModal({ isOpen, onClose, appointment }: EditAppointmentModalProps) {
@@ -20,8 +20,8 @@ export default function EditAppointmentModal({ isOpen, onClose, appointment }: E
   const [selectedLeadId, setSelectedLeadId] = useState(appointment.lead_id);
 
   const updateAppointmentMutation = useUpdateAppointment();
-  const { data: agents } = useAgents(); // Fetch agents to populate dropdown
-  const { data: leads } = useLeads(); // Fetch leads to populate dropdown
+  const { data: agents } = useAgents()
+  const { data: leads } = useLeads()
 
   if (!isOpen) return null;
 

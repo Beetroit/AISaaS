@@ -7,7 +7,7 @@ import { AgentRead, AgentUpdate } from "../../types/agent";
 interface EditAgentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  agent: AgentRead; // The agent data to edit
+  agent: AgentRead
 }
 
 export default function EditAgentModal({ isOpen, onClose, agent }: EditAgentModalProps) {

@@ -66,7 +66,7 @@ export function useAuthStatus() {
       const token = getAuthToken();
       return Promise.resolve(!!token)
     },
-    staleTime: Infinity, // Auth status doesn't change often without explicit action
+    staleTime: Infinity,
   });
 }
 
@@ -75,6 +75,6 @@ export function useUserMe() {
   return useQuery<UserResponse, Error>({
     queryKey: ["userMe"],
     queryFn: fetchUserMe,
-    enabled: isAuthenticated, // Only fetch if authenticated
+    enabled: isAuthenticated,
   });
 }

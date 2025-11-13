@@ -1,6 +1,6 @@
-import { callApi } from "./core";
 import { AgentCreate, AgentRead, AgentUpdate, TwilioCredentials } from "../../types/agent";
-import { LeadMappingConfig } from "../../types/lead"; // Import LeadMappingConfig
+import { LeadMappingConfig } from "../../types/lead";
+import { callApi } from "./core";
 
 export async function createAgent(agent: AgentCreate): Promise<AgentRead> {
   return callApi<AgentRead>("/agents/", {

@@ -1,9 +1,10 @@
 import logging
 from datetime import datetime, timezone
 
+import redis.asyncio as redis
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Configure logging
+
 from rich.console import Console
 from rich.logging import RichHandler
 
@@ -53,9 +54,13 @@ class Settings(BaseSettings):
     stripe_customer_portal_return_url: str
     stripe_webhook_secret: str
     backend_base_url: str
+    redis_host: str = "localhost"
+    redis_port: int = 6379
 
 
 settings = Settings.model_validate({})
+
+redis_client = redis.Redis(host=settings.redis_host, port=settings.redis_port, db=0)
 
 for key, value in settings.model_dump().items():
     print(f"{key} = {value}")

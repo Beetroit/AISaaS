@@ -11,7 +11,7 @@ import {
   getLeadWebhookUrl,
   generateNewLeadWebhookUrl,
   deleteLeadWebhookUrl,
-  LeadWebhookSecretData, // New import
+  LeadWebhookSecretData,
 } from "@/lib/api/credentials";
 import { ApiError } from "@/lib/api/core";
 

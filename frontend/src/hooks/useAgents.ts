@@ -9,11 +9,11 @@ import {
   getLeadWebhookUrl,
   saveTwilioCredentials,
   updateAgent,
-  getLeadMapping, // Import new API call
-  saveLeadMapping, // Import new API call
+  getLeadMapping,
+  saveLeadMapping,
 } from "../lib/api/agents";
 import { AgentCreate, AgentRead, AgentUpdate, TwilioCredentials } from "../types/agent";
-import { LeadMappingConfig } from "../types/lead"; // Import LeadMappingConfig
+import { LeadMappingConfig } from "../types/lead";
 
 // --- Queries ---
 
@@ -28,7 +28,7 @@ export function useAgent(agentId: string) {
   return useQuery<AgentRead, Error>({
     queryKey: ["agent", agentId],
     queryFn: () => getAgent(agentId),
-    enabled: !!agentId, // Only run query if agentId is available
+    enabled: !!agentId,
   });
 }
 
@@ -116,7 +116,7 @@ export function useSaveLeadMapping() {
     mutationFn: ({ agentId, config }) => saveLeadMapping(agentId, config),
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["leadMapping", variables.agentId] });
-      // Optionally, invalidate agent details if mapping affects agent representation
+
       queryClient.invalidateQueries({ queryKey: ["agent", variables.agentId] });
     },
   });

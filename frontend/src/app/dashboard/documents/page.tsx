@@ -1,16 +1,16 @@
 "use client";
 
 import React, { useState } from 'react';
-import { useDocuments, useUploadDocument, useRemoveDocument, useProcessDocuments } from '../../../hooks/useDocuments';
-import { ApiError } from '../../../lib/api/core'; // Import ApiError
+import { useDocuments, useProcessDocuments, useRemoveDocument, useUploadDocument } from '../../../hooks/useDocuments';
+import { ApiError } from '../../../lib/api/core';
 
 export default function DocumentsPage() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]); // State for selected document IDs
+  const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([])
   const { data: documents, isLoading: isLoadingDocuments, isError: isErrorDocuments, error: errorDocuments } = useDocuments();
   const uploadDocumentMutation = useUploadDocument();
   const removeDocumentMutation = useRemoveDocument();
-  const processDocumentsMutation = useProcessDocuments(); // Use the new hook
+  const processDocumentsMutation = useProcessDocuments()
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
@@ -61,7 +61,7 @@ export default function DocumentsPage() {
       processDocumentsMutation.mutate(selectedDocumentIds, {
         onSuccess: () => {
           console.log("Selected documents processing initiated.");
-          setSelectedDocumentIds([]); // Clear selection after initiating process
+          setSelectedDocumentIds([])
         },
         onError: (error) => {
           console.error("Failed to initiate processing:", error.message);
@@ -159,12 +159,11 @@ export default function DocumentsPage() {
                     </td>
                     <td className="py-3 px-4">{doc.filename}</td>
                     <td className="py-3 px-4">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        doc.status === 'processed' ? 'bg-green-100 text-green-800' :
-                        doc.status === 'processing' ? 'bg-yellow-100 text-yellow-800' :
-                        doc.status === 'failed' ? 'bg-red-100 text-red-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${doc.status === 'processed' ? 'bg-green-100 text-green-800' :
+                          doc.status === 'processing' ? 'bg-yellow-100 text-yellow-800' :
+                            doc.status === 'failed' ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'
+                        }`}>
                         {doc.status}
                       </span>
                     </td>

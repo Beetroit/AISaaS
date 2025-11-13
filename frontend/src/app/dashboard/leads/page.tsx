@@ -1,12 +1,11 @@
 "use client";
 
-import React from 'react';
-import { useRouter } from 'next/navigation'; // Import useRouter
-import { useLeads, useDeleteLead } from '../../../hooks/useLeads';
+import { useRouter } from 'next/navigation';
+import { useDeleteLead, useLeads } from '../../../hooks/useLeads';
 import { ApiError } from '../../../lib/api/core';
 
 export default function LeadsPage() {
-  const router = useRouter(); // Initialize useRouter
+  const router = useRouter()
   const { data: leads, isLoading, isError, error } = useLeads();
   const deleteLeadMutation = useDeleteLead();
 
@@ -26,7 +25,7 @@ export default function LeadsPage() {
   };
 
   const handleEditClick = (leadId: string) => {
-    router.push(`/dashboard/leads/${leadId}`); // Navigate to lead details page
+    router.push(`/dashboard/leads/${leadId}`)
   };
 
   if (isLoading) {

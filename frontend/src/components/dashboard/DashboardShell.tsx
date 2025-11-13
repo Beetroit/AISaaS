@@ -1,19 +1,19 @@
 "use client";
 
-import React from "react";
-import Link from "next/link";
-import { useLogout, useAuthStatus, useUserMe } from "../../hooks/useAuth"; // Import useUserMe
-import { useRouter } from "next/navigation";
 import {
-  Home,
-  Users,
-  FileText,
-  DollarSign,
   Calendar,
   CreditCard,
+  DollarSign,
+  FileText,
+  Home,
   LogOut,
-  Plug, // New import for Integrations icon
-} from "lucide-react"; // Using lucide-react for icons
+  Plug,
+  Users,
+} from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import React from "react";
+import { useAuthStatus, useLogout, useUserMe } from "../../hooks/useAuth";
 
 export default function DashboardShell({
   children,
@@ -23,17 +23,17 @@ export default function DashboardShell({
   const router = useRouter();
   const logoutMutation = useLogout();
   const { data: isAuthenticated, isLoading } = useAuthStatus();
-  const { data: user, isLoading: isLoadingUser } = useUserMe(); // Fetch user data
+  const { data: user, isLoading: isLoadingUser } = useUserMe();
 
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {
       onSuccess: () => {
-        router.push("/"); // Redirect to home page after logout
+        router.push("/");
       },
     });
   };
 
-  if (isLoading || isLoadingUser) { // Check both auth status and user loading
+  if (isLoading || isLoadingUser) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
         <p>Loading user data...</p>

@@ -17,12 +17,12 @@ from .routers import (
     agents,
     appointments,
     auth,
-    credentials,  # New import
+    credentials,
     documents,
     leads,
+    reports,
     stripe_api,
     webhooks,
-    reports,
 )
 
 
@@ -44,8 +44,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept", "Origin", "User-Agent"],
 )
 
 
@@ -55,17 +55,11 @@ async def validation_exception_handler(
 ) -> JSONResponse:
     # TODO: Update this to return single regex error message
     error_messages = [
-        {
-            "loc": error["loc"][0],
-            "field_name": error["loc"][-1],
-            # TODO: This could be cleaner
-            "message": error["msg"].replace("Value error, ", ""),
-        }
-        for error in exc.errors()
+        error["msg"].replace("Value error, ", "") for error in exc.errors()
     ]
     return JSONResponse(
         status_code=400,
-        content={"errors": error_messages},
+        content={"detail": "Validation error", "errors": error_messages},
     )
 
 
@@ -94,7 +88,7 @@ app.include_router(agents.router)
 app.include_router(appointments.router, prefix="/appointments", tags=["appointments"])
 app.include_router(leads.router, prefix="/leads", tags=["leads"])
 app.include_router(reports.router, prefix="/reports", tags=["reports"])
-app.include_router(credentials.router)  # New include
+app.include_router(credentials.router)
 
 
 @app.get("/users/me", response_model=schemas_user.UserResponse)

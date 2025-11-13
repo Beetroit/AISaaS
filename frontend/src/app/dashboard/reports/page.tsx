@@ -1,12 +1,11 @@
 "use client";
 
-import React from 'react';
+import { useAgents } from '../../../hooks/useAgents';
 import { useMessageUsageReport } from '../../../hooks/useReports';
-import { useAgents } from '../../../hooks/useAgents'; // To get agent names
 
 export default function ReportsPage() {
   const { data: report, isLoading, isError, error } = useMessageUsageReport();
-  const { data: agents } = useAgents(); // Fetch agents to map IDs to names
+  const { data: agents } = useAgents()
 
   const getAgentName = (agentId: string) => {
     return agents?.find(agent => agent.id === agentId)?.name || agentId;

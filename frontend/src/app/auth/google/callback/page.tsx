@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
 import { useFeedback } from '@/context/FeedbackContext';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useEffect } from 'react';
 
 function GoogleCallbackContent() {
   const router = useRouter();
@@ -16,7 +16,7 @@ function GoogleCallbackContent() {
 
     if (error) {
       showFeedback('failed', `Google Calendar connection failed: ${error}`);
-      router.replace('/dashboard/integrations'); // Redirect back to integrations page
+      router.replace('/dashboard/integrations')
       return;
     }
 
@@ -27,10 +27,10 @@ function GoogleCallbackContent() {
       // The backend's /auth/google/callback already handles saving credentials.
 
       showFeedback('success', 'Google Calendar connected successfully!');
-      router.replace('/dashboard/integrations'); // Redirect back to integrations page
+      router.replace('/dashboard/integrations')
     } else {
       showFeedback('failed', 'Google Calendar connection failed: Missing code or state.');
-      router.replace('/dashboard/integrations'); // Redirect back to integrations page
+      router.replace('/dashboard/integrations')
     }
   }, [searchParams, router, showFeedback]);
 

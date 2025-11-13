@@ -2,8 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import DashboardShell from "../../components/dashboard/DashboardShell";
 import { useAuthStatus } from "../../hooks/useAuth";
-import DashboardShell from "../../components/dashboard/DashboardShell"; // Import DashboardShell
 
 export default function DashboardLayout({
   children,
@@ -15,7 +15,7 @@ export default function DashboardLayout({
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push("/"); // Redirect to home page if not authenticated
+      router.push("/")
     }
   }, [isAuthenticated, isLoading, router]);
 
@@ -28,8 +28,8 @@ export default function DashboardLayout({
   }
 
   if (!isAuthenticated) {
-    return null; // Or a loading spinner, or a message
+    return null
   }
 
-  return <DashboardShell>{children}</DashboardShell>; // Wrap children with DashboardShell
+  return <DashboardShell>{children}</DashboardShell>
 }

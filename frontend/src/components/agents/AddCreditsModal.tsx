@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { useAgents, useAddAgentCredits } from "../../hooks/useAgents";
-import { useUserCredits } from "../../hooks/useUser"; // Import useUserCredits
+import { useAddAgentCredits, useAgents } from "../../hooks/useAgents";
+import { useUserCredits } from "../../hooks/useUser";
 
 interface AddCreditsModalProps {
   isOpen: boolean;
@@ -12,17 +12,17 @@ interface AddCreditsModalProps {
 export default function AddCreditsModal({ isOpen, onClose }: AddCreditsModalProps) {
   const [selectedAgentId, setSelectedAgentId] = useState("");
   const [amount, setAmount] = useState(0);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null); // State for local error messages
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const { data: agents } = useAgents();
-  const { data: userCredits, isLoading: isLoadingUserCredits } = useUserCredits(); // Fetch user credits
+  const { data: userCredits, isLoading: isLoadingUserCredits } = useUserCredits()
   const addAgentCreditsMutation = useAddAgentCredits();
 
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMessage(null); // Clear previous errors
+    setErrorMessage(null)
 
     if (!selectedAgentId || amount <= 0) {
       setErrorMessage("Please select an agent and enter a valid amount.");

@@ -8,6 +8,7 @@ from sqlalchemy import select
 from starlette.responses import Response
 from twilio.request_validator import RequestValidator
 
+from backend.app.config import settings
 from backend.app.dependencies import (
     AgentWorkflowServiceDep,
     ChatSessionCRUDDep,
@@ -18,9 +19,7 @@ from backend.app.dependencies import (
 from backend.app.models.agent import Agent
 from backend.app.schemas.chat_session import ChatSessionCreate
 from backend.app.schemas.lead import LeadCreate
-from backend.app.schemas.message import MessageCreate  # New import
-
-from backend.app.config import settings
+from backend.app.schemas.message import MessageCreate
 
 router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
 

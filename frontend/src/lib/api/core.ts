@@ -69,7 +69,7 @@ export async function callApi<T>(
 
   // Handle 404 specifically for GET requests by returning null
   if (method === "GET" && response.status === 404) {
-    return null as T; // Return null for not found resources
+    return null as T
   }
 
   if (!response.ok) {
