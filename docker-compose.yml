@@ -29,7 +29,7 @@ services:
   db:
     image: postgres:17
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - aisaas_postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 30s
@@ -47,12 +47,33 @@ services:
     ports:
       - "8003:8000"
     volumes:
-      - chroma_data:/chroma/data
+      - aisaas_chroma_data:/chroma/data
     networks:
       - aisaas
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    command: sh -c "pnpm install && pnpm run dev"
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./frontend:/app/frontend:rw
+      - /app/frontend/node_modules
+      - /app/frontend/.next
+    env_file:
+      - ./.env.local
+    environment:
+      - CI=true
+    depends_on:
+      - backend
+    networks:
+      - aisaas
+
 volumes:
-  postgres_data:
-  chroma_data:
+  aisaas_postgres_data:
+  aisaas_chroma_data:
 
 
 networks:

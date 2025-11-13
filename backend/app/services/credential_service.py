@@ -1,17 +1,17 @@
 import secrets  # Moved from inside method
 from typing import Any, Dict, Optional
 
-from fastapi import HTTPException, status  # Moved from inside method
+from fastapi import HTTPException, status
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.config import settings  # Moved from inside method
+from backend.app.config import settings
 from backend.app.models.agent import Agent
 from backend.app.models.credential import Credential
-from backend.app.schemas.credential import CredentialRead  # New import
+from backend.app.schemas.credential import CredentialRead
 from backend.app.utils.encryption import encryption_helper
 
 

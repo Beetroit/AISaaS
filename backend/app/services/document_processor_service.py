@@ -65,15 +65,16 @@ class DocumentProcessorService:
             embedding_function=self.embedding_function,
         )
 
-        metadatas = [
-            {
+        metadatas = []
+        for i in range(len(chunks)):
+            metadata = {
                 "document_id": document_id,
                 "user_id": user_id,
-                "agent_id": agent_id,
                 "chunk_index": i,
             }
-            for i in range(len(chunks))
-        ]
+            if agent_id is not None:
+                metadata["agent_id"] = agent_id
+            metadatas.append(metadata)
         ids = [f"{document_id}_chunk_{i}" for i in range(len(chunks))]
 
         collection.add(
@@ -88,4 +89,6 @@ class DocumentProcessorService:
         collection = self.chroma_client.get_or_create_collection(
             name=collection_name, embedding_function=self.embedding_function
         )
-        collection.delete(where={"document_id": document_id, "user_id": user_id})
+        collection.delete(
+            where={"$and": [{"document_id": document_id}, {"user_id": user_id}]}
+        )
