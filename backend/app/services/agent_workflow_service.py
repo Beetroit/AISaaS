@@ -1,18 +1,16 @@
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
+from backend.app.config import logger
 from backend.app.crud.chat_session_crud import ChatSessionCRUD
 from backend.app.crud.lead_crud import LeadCRUD
 from backend.app.crud.message_crud import MessageCRUD
 from backend.app.models.agent import Agent
 from backend.app.models.chat_session import ChatSession
-from backend.app.models.lead import Lead
-from backend.app.schemas.lead import LeadCreate, LeadUpdate
 from backend.app.schemas.message import MessageCreate
 from backend.app.services.ai_service import AIService
 from backend.app.services.credential_service import CredentialService
-from backend.app.services.google_calendar_service import GoogleCalendarService
 from backend.app.services.messaging_service import MessagingService
-from backend.app.services.retrieval_service import RetrievalService
+from backend.app.services.workflow_actions.factory import ActionFactory
 
 
 class AgentWorkflowService:
@@ -22,8 +20,6 @@ class AgentWorkflowService:
         chat_session_crud: ChatSessionCRUD,
         message_crud: MessageCRUD,
         ai_service: AIService,
-        google_calendar_service: GoogleCalendarService,
-        retrieval_service: RetrievalService,
         credential_service: CredentialService,
         messaging_service: MessagingService,
     ):
@@ -31,248 +27,123 @@ class AgentWorkflowService:
         self.chat_session_crud = chat_session_crud
         self.message_crud = message_crud
         self.ai_service = ai_service
-        self.google_calendar_service = google_calendar_service
-        self.retrieval_service = retrieval_service
         self.credential_service = credential_service
         self.messaging_service = messaging_service
+        self.action_factory = ActionFactory()
 
     async def execute_workflow(
         self, agent: Agent, chat_session: ChatSession, user_message: str
     ) -> str:
-        lead = await self.lead_crud.get_lead_by_chat_session_id(chat_session.id)
+        if not agent.workflow_schema:
+            return "Error: Agent has no workflow schema defined."
 
-        if not lead:
-            return "Error: No lead associated with this chat session."
+        nodes = {node["id"]: node for node in agent.workflow_schema.get("nodes", [])}
+        edges = agent.workflow_schema.get("edges", [])
 
+        current_node_id = chat_session.current_workflow_step or self._find_start_node(
+            nodes
+        )
+        if not current_node_id:
+            return "Error: Workflow has no start node."
+
+        workflow_context = {"user_message": user_message}
         response = ""
-        current_step_key = (
-            chat_session.current_workflow_step or "1"
-        )  # Start at step 1 or current
 
-        if agent.workflow_schema and current_step_key in agent.workflow_schema:
-            step_data = agent.workflow_schema[current_step_key]
-            step_response, next_step_key = await self._process_workflow_step(
-                agent=agent,
-                chat_session=chat_session,
-                lead=lead,
-                step_key=current_step_key,
-                step_data=step_data,
-                user_message=user_message,
+        while current_node_id:
+            current_node = nodes.get(current_node_id)
+            if not current_node:
+                logger.error(
+                    "Workflow error: Node ID %s not found in schema.", current_node_id
+                )
+                return "Error: Workflow execution failed."
+
+            action_class = self.action_factory.get_action(current_node["type"])
+            action_instance = action_class()
+
+            # This context will be expanded to include all necessary services and data
+            action_result = await action_instance.execute(
+                context=workflow_context, node_data=current_node.get("data", {})
             )
-            if step_response:
-                response += step_response
 
-            chat_session.current_workflow_step = next_step_key
-            await self.chat_session_crud.session.flush()
+            # Merge results into the main context
+            workflow_context.update(action_result)
+
+            # Special handling for questions that pause the workflow
+            if "question_to_ask" in action_result:
+                response = action_result["question_to_ask"]
+                chat_session.current_workflow_step = (
+                    current_node_id  # Stay on this node
+                )
+                await self.chat_session_crud.session.flush()
+                break  # Exit the loop to send the question
+
+            # Find the next node
+            next_node_id = self._find_next_node(current_node_id, edges)
+            chat_session.current_workflow_step = next_node_id
+            current_node_id = next_node_id
+
+            if not current_node_id:  # Reached the end of a path
+                logger.info("Workflow path completed for session %s.", chat_session.id)
+                break
 
         if not response:
-            # If no workflow step generated a response, use a generic AI response
-            ai_response_content = await self.ai_service.generate_response(
-                prompt=f"User said: {user_message}. Agent persona: {agent.persona}"
-            )
-            response = ai_response_content
-            await self.message_crud.create_message(
-                MessageCreate(
-                    chat_session_id=chat_session.id,
-                    role="agent",
-                    content=ai_response_content,
-                )
-            )
+            response = "Workflow completed."  # Default response if no question is asked
 
-        # Decrement message credits after generating a response
+        await self._handle_response_and_credits(agent, chat_session, response)
+        return response
+
+    def _find_start_node(self, nodes: Dict[str, Any]) -> Optional[str]:
+        for node_id, node in nodes.items():
+            if node.get("type") == "start":
+                return node_id
+        return None
+
+    def _find_next_node(
+        self, current_node_id: str, edges: List[Dict[str, Any]]
+    ) -> Optional[str]:
+        for edge in edges:
+            if edge.get("source") == current_node_id:
+                return edge.get("target")
+        return None
+
+    async def _handle_response_and_credits(
+        self, agent: Agent, chat_session: ChatSession, response: str
+    ):
         credits_decremented = await self._decrement_message_credits(agent)
         if not credits_decremented:
-            # Even if credits run out, we should inform the user.
             final_response = "I'm sorry, but this agent has run out of message credits. Please top up to continue."
         else:
             final_response = response.strip()
 
-        # Send the response via the messaging service
+        await self.message_crud.create_message(
+            MessageCreate(
+                chat_session_id=chat_session.id,
+                role="agent",
+                content=final_response,
+            )
+        )
+
         twilio_credentials = await self.credential_service.get_credential(
             agent.user_id, "twilio"
         )
         if twilio_credentials:
             await self.messaging_service.send_message(
-                to=chat_session.external_id,  # The user's phone number
+                to=chat_session.external_id,
                 body=final_response,
                 creds=twilio_credentials,
             )
         else:
-            # Log that credentials are not configured for this agent
-            print(
-                f"Warning: Messaging credentials not configured for agent {agent.id}. Cannot send message."
+            logger.warning(
+                "Messaging credentials not configured for agent %s. Cannot send message.",
+                agent.id,
             )
-
-        return final_response
-
-    async def _process_workflow_step(
-        self,
-        agent: Agent,
-        chat_session: ChatSession,
-        lead: Lead,
-        step_key: str,
-        step_data: Dict[str, Any],
-        user_message: str,
-    ) -> tuple[Optional[str], Optional[str]]:
-        step_type = step_data.get("type")
-        response = None
-        next_step_key = str(int(step_key) + 1)  # Default to next step
-
-        if step_type == "ask_question":
-            # If we are asking a question, the response is the question itself.
-            # The next step remains the current step until an answer is processed.
-            response = step_data.get("question")
-            next_step_key = step_key
-        elif step_type == "process_answer":
-            # Evaluate user's message against conditions to determine next action/status
-            for condition_key, condition_data in step_data.get(
-                "next_step_if_match", {}
-            ).items():
-                if await self._evaluate_condition(
-                    condition_data["condition"],
-                    {"user_message": user_message, "lead": lead},
-                ):
-                    # Execute the action associated with the matched condition
-                    action_response = await self._execute_action(
-                        agent=agent,
-                        chat_session=chat_session,
-                        lead=lead,
-                        step_data=condition_data,  # Use condition_data as step_data for action
-                        user_message=user_message,
-                    )
-                    if action_response:
-                        response = action_response
-                    next_step_key = condition_data.get(
-                        "next_step", str(int(step_key) + 1)
-                    )
-                    break
-            if not response:
-                response = "I didn't understand your answer. Could you please rephrase?"
-                next_step_key = step_key
-        else:
-            # For other step types, execute the action directly
-            response = await self._execute_action(
-                agent=agent,
-                chat_session=chat_session,
-                lead=lead,
-                step_data=step_data,
-                user_message=user_message,
-            )
-
-        return response, next_step_key
-
-    async def _execute_action(
-        self,
-        agent: Agent,
-        chat_session: ChatSession,
-        lead: Lead,
-        step_data: Dict[str, Any],
-        user_message: str,
-    ) -> Optional[str]:
-        step_type = step_data.get("type")
-
-        # Example: Schedule Appointment Step
-        if step_type == "schedule_appointment":
-            # This is a simplified example. In a real scenario, you'd extract
-            # appointment details (summary, start_time, end_time) from the user_message
-            # or other context, possibly using the AI service.
-            appointment_details = {
-                "summary": "Meeting with Lead",
-                "start_time": "2025-12-01T10:00:00Z",  # Example: needs to be dynamic
-                "end_time": "2025-12-01T11:00:00Z",  # Example: needs to be dynamic
-                "attendees": [{"email": lead.contact_info.get("email")}],
-            }
-            try:
-                await self.google_calendar_service.create_calendar_event(
-                    user_id=agent.user_id, event_details=appointment_details
-                )
-                return "Appointment scheduled successfully!"
-            except Exception as e:
-                return f"Failed to schedule appointment: {e}"
-
-        # Example: Product Discussion Step
-        if step_type == "product_discussion":
-            product_query = step_data.get("query", user_message)
-            # Retrieve relevant product information from the knowledge base
-            retrieved_docs = await self.retrieval_service.retrieve_relevant_chunks(
-                query=product_query, user_id=agent.user_id, agent_id=agent.id
-            )
-            product_info = "\n".join([doc.document for doc in retrieved_docs])
-
-            if product_info:
-                ai_prompt = (
-                    f"Based on the following product information:\n{product_info}\n"
-                    f"and the user's query: {user_message},\n"
-                    f"provide a detailed response about the product."
-                )
-                response = await self.ai_service.generate_response(prompt=ai_prompt)
-                return response
-            else:
-                return "I couldn't find information about that product."
-
-        # Example: Create Lead Step (if not already created)
-        if step_type == "create_lead":
-            if not lead.id:  # Check if lead already exists
-                # This is a simplified example. In a real scenario, you'd extract
-                # lead details from the user_message or other context.
-                lead_create_data = {
-                    "user_id": agent.user_id,
-                    "agent_id": agent.id,
-                    "chat_session_id": chat_session.id,
-                    "name": "New Lead from Chat",
-                    "qualification_status": "new",
-                }
-                new_lead = await self.lead_crud.create_lead(
-                    lead=LeadCreate(**lead_create_data),
-                    user_id=agent.user_id,
-                    agent_id=agent.id,
-                    chat_session_id=chat_session.id,
-                )
-                if new_lead:
-                    return f"New lead created: {new_lead.id}"
-                else:
-                    return "Failed to create new lead."
-
-        # Example: Update Lead Step
-        if step_type == "update_lead":
-            # This is a simplified example. In a real scenario, you'd extract
-            # update details from the user_message or other context.
-            update_data = {"qualification_status": "qualified"}
-            updated_lead = await self.lead_crud.update_lead(
-                lead.id, LeadUpdate(**update_data)
-            )
-            if updated_lead:
-                return f"Lead {updated_lead.id} updated."
-            else:
-                return "Failed to update lead."
-
-        return None
 
     async def _decrement_message_credits(self, agent: Agent, amount: int = 1) -> bool:
         if agent.message_credits >= amount:
             agent.message_credits -= amount
             self.lead_crud.session.add(agent)
             await self.lead_crud.session.flush()
-
             return True
         else:
-            # Handle insufficient credits (e.g., log, raise error, notify user)
-            print(f"Agent {agent.id} has insufficient credits.")
+            logger.info("Agent %s has insufficient credits.", agent.id)
             return False
-
-    async def _evaluate_condition(
-        self, condition: str, context: Dict[str, Any]
-    ) -> bool:
-        # Basic and safe condition evaluation. Extend as needed with a proper expression parser.
-        # Avoids `eval()` for security reasons.
-        user_message = context.get("user_message", "").lower()
-        lead = context.get("lead")
-
-        if "user_message contains 'yes'" in condition.lower():
-            return "yes" in user_message
-        if "user_message contains 'no'" in condition.lower():
-            return "no" in user_message
-        if "lead.qualification_status == 'qualified'" in condition.lower() and lead:
-            return lead.qualification_status == "qualified"
-        # Add more safe conditions as needed
-        return False

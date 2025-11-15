@@ -23,6 +23,7 @@ from .routers import (
     reports,
     stripe_api,
     webhooks,
+    workflow,
 )
 
 
@@ -89,6 +90,7 @@ app.include_router(appointments.router, prefix="/appointments", tags=["appointme
 app.include_router(leads.router, prefix="/leads", tags=["leads"])
 app.include_router(reports.router, prefix="/reports", tags=["reports"])
 app.include_router(credentials.router)
+app.include_router(workflow.router)
 
 
 @app.get("/users/me", response_model=schemas_user.UserResponse)

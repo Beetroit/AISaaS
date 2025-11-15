@@ -1,13 +1,16 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 console.log("Frontend API Base URL:", API_BASE_URL);
 
-// Custom Error class to include status code
+// Custom Error class to include status code and structured errors
 export class ApiError extends Error {
   statusCode: number;
-  constructor(message: string, statusCode: number) {
+  errors?: string[];
+
+  constructor(message: string, statusCode: number, errors?: string[]) {
     super(message);
     this.name = "ApiError";
     this.statusCode = statusCode;
+    this.errors = errors;
   }
 }
 
@@ -35,7 +38,7 @@ export async function callApi<T>(
   config?: ApiConfig
 ): Promise<T> {
   const { method = "GET", body, isFormData = false } = config || {};
-  const token = getAuthToken()
+  const token = getAuthToken();
   const headers: HeadersInit = {};
 
   if (token) {
@@ -46,10 +49,10 @@ export async function callApi<T>(
 
   if (body) {
     if (isFormData) {
-      requestBody = body as FormData
+      requestBody = body as FormData;
     } else {
       headers["Content-Type"] = "application/json";
-      requestBody = JSON.stringify(body as object)
+      requestBody = JSON.stringify(body as object);
     }
   }
 
@@ -61,21 +64,40 @@ export async function callApi<T>(
 
   if (response.status === 401) {
     console.error("Unauthorized: Token might be expired or invalid. Removing token.");
-    removeAuthToken()
-    // Optionally, trigger a global logout event or redirect
-    // window.location.href = '/login'
-    throw new ApiError("Unauthorized", response.status)
+    removeAuthToken();
+    window.location.href = '/';
+    throw new ApiError("Unauthorized. Please log in again.", response.status);
   }
 
-  // Handle 404 specifically for GET requests by returning null
   if (method === "GET" && response.status === 404) {
-    return null as T
+    return null as T;
   }
 
   if (!response.ok) {
-    const errorData = await response.json();
-    throw new ApiError(errorData.detail || "API call failed", response.status)
+    try {
+      const errorData = await response.json();
+      // Handle Pydantic validation errors, which come in an 'errors' array
+      if (errorData.errors && Array.isArray(errorData.errors)) {
+        const errorMessage = errorData.errors.join(", ");
+        throw new ApiError(errorMessage, response.status, errorData.errors);
+      }
+      // Handle other structured errors with 'message' or 'detail'
+      const message = errorData.message || errorData.detail || "An unknown API error occurred.";
+      throw new ApiError(message, response.status);
+    } catch {
+      // If the body isn't JSON or another error occurs
+      throw new ApiError(response.statusText || "Failed to fetch", response.status);
+    }
+  }
+
+  // Handle successful but empty responses (e.g., 204 No Content)
+  if (response.status === 204) {
+    return null as T;
   }
 
   return response.json() as Promise<T>;
+}
+
+export async function get<T>(endpoint: string): Promise<T> {
+  return callApi<T>(endpoint, { method: "GET" });
 }

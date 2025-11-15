@@ -1,51 +1,71 @@
 "use client";
 
-import React, { useState } from "react";
-import { useUpdateAgent } from "../../hooks/useAgents";
-import { AgentRead, AgentUpdate } from "../../types/agent";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import React, { useCallback, useState } from "react";
+import { useAgent, useUpdateAgent } from "../../hooks/useAgents";
+import { AgentUpdate, AgentWorkflowSchema } from "../../types/agent";
+import { WorkflowEditor } from "./WorkflowEditor";
+
+import { toast } from "sonner";
 
 interface EditAgentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  agent: AgentRead
+  agentId: string;
 }
 
-export default function EditAgentModal({ isOpen, onClose, agent }: EditAgentModalProps) {
-  const [name, setName] = useState(agent.name);
-  const [description, setDescription] = useState(agent.description || "");
-  const [persona, setPersona] = useState(agent.persona || "");
-  const [initialPrompts, setInitialPrompts] = useState(agent.initial_prompts || "");
+export default function EditAgentModal({ isOpen, onClose, agentId }: EditAgentModalProps) {
+  const { data: agent, isLoading, error } = useAgent(agentId);
+  const [formState, setFormState] = useState<Partial<AgentUpdate>>({});
+  const [workflowSchema, setWorkflowSchema] = useState<AgentWorkflowSchema | null>(null);
 
   const updateAgentMutation = useUpdateAgent();
 
+  React.useEffect(() => {
+    if (agent) {
+      setFormState({
+        name: agent.name,
+        description: agent.description,
+        persona: agent.persona,
+        initial_prompts: agent.initial_prompts,
+      });
+      setWorkflowSchema(agent.workflow_schema || { nodes: [], edges: [] });
+    }
+  }, [agent]);
+
+  const handleSchemaChange = useCallback((schema: AgentWorkflowSchema) => {
+    setWorkflowSchema(schema);
+  }, []);
+
   if (!isOpen) return null;
+  if (isLoading) return <div>Loading...</div>;
+  if (error || !agent) return <div>Error loading agent.</div>;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const updatedAgent: AgentUpdate = {
-      name,
-      description: description || undefined,
-      persona: persona || undefined,
-      initial_prompts: initialPrompts || undefined,
+      ...formState,
+      workflow_schema: workflowSchema,
     };
 
     updateAgentMutation.mutate(
       { agentId: agent.id, agent: updatedAgent },
       {
         onSuccess: () => {
+          toast.success("Agent updated successfully!");
           onClose();
         },
         onError: (error) => {
           console.error("Failed to update agent:", error.message);
-          // TODO: Display user-friendly error message
+          toast.error(`Failed to update agent: ${error.message}`);
         },
       }
     );
   };
 
   return (
-    <div key={agent.id} className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex justify-center items-center">
-      <div className="relative mx-auto p-5 border w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex justify-center items-center">
+      <div className="relative mx-auto p-5 border w-full max-w-4xl shadow-lg rounded-md bg-white dark:bg-gray-800">
         <div className="text-right">
           <button
             className="text-gray-400 hover:text-gray-600 text-2xl font-semibold"
@@ -58,69 +78,39 @@ export default function EditAgentModal({ isOpen, onClose, agent }: EditAgentModa
           Edit Agent: {agent.name}
         </h2>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Name
-            </label>
-            <input
-              type="text"
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-            />
-          </div>
-          <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Description
-            </label>
-            <textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-            ></textarea>
-          </div>
-          <div>
-            <label htmlFor="persona" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Persona
-            </label>
-            <textarea
-              id="persona"
-              value={persona}
-              onChange={(e) => setPersona(e.target.value)}
-              rows={3}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-            ></textarea>
-          </div>
-          <div>
-            <label htmlFor="initialPrompts" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Initial Prompts
-            </label>
-            <textarea
-              id="initialPrompts"
-              value={initialPrompts}
-              onChange={(e) => setInitialPrompts(e.target.value)}
-              rows={3}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
-            ></textarea>
-          </div>
-          <button
-            type="submit"
-            className="w-full bg-blue-600 text-white py-2 rounded-md font-semibold hover:bg-blue-700 transition duration-150"
-            disabled={updateAgentMutation.isPending}
-          >
-            {updateAgentMutation.isPending ? "Updating..." : "Update Agent"}
-          </button>
-          {updateAgentMutation.isError && (
-            <p className="text-red-500 text-sm mt-2">
-              Error: {updateAgentMutation.error?.message}
-            </p>
-          )}
-        </form>
+        <Tabs defaultValue="details">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="details">Details</TabsTrigger>
+            <TabsTrigger value="workflow">Workflow</TabsTrigger>
+          </TabsList>
+          <TabsContent value="details">
+            <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+              {/* Form fields for name, description, etc. */}
+              <button
+                type="submit"
+                className="w-full bg-blue-600 text-white py-2 rounded-md font-semibold hover:bg-blue-700 transition duration-150"
+                disabled={updateAgentMutation.isPending}
+              >
+                {updateAgentMutation.isPending ? "Saving..." : "Save Changes"}
+              </button>
+            </form>
+          </TabsContent>
+          <TabsContent value="workflow">
+            {workflowSchema && (
+              <WorkflowEditor
+                initialSchema={workflowSchema}
+                onSchemaChange={handleSchemaChange}
+              />
+            )}
+            <button
+              onClick={handleSubmit}
+              className="w-full mt-4 bg-blue-600 text-white py-2 rounded-md font-semibold hover:bg-blue-700 transition duration-150"
+              disabled={updateAgentMutation.isPending}
+            >
+              {updateAgentMutation.isPending ? "Saving..." : "Save Workflow"}
+            </button>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

@@ -1,5 +1,4 @@
 import asyncio
-import logging
 from typing import Any, Dict, List, Literal, Optional, Union
 
 from openai import (
@@ -13,10 +12,7 @@ from openai import (
 from openai.lib.streaming.responses import ResponseStreamEvent
 from openai.types.responses import FunctionToolParam, Response
 
-from backend.app.config import settings
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+from backend.app.config import settings, logger
 
 
 class OpenAIService:

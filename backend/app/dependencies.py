@@ -135,10 +135,6 @@ def get_google_calendar_service(
 
 def get_agent_workflow_service(
     ai_service: AIService = Depends(get_openai_service),
-    google_calendar_service: GoogleCalendarService = Depends(
-        get_google_calendar_service
-    ),
-    retrieval_service: RetrievalService = Depends(get_retrieval_service),
     lead_crud: LeadCRUD = Depends(get_lead_crud),
     chat_session_crud: ChatSessionCRUD = Depends(get_chat_session_crud),
     message_crud: MessageCRUD = Depends(get_message_crud),
@@ -147,8 +143,6 @@ def get_agent_workflow_service(
 ) -> AgentWorkflowService:
     return AgentWorkflowService(
         ai_service=ai_service,
-        google_calendar_service=google_calendar_service,
-        retrieval_service=retrieval_service,
         lead_crud=lead_crud,
         chat_session_crud=chat_session_crud,
         message_crud=message_crud,

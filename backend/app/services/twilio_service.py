@@ -1,6 +1,8 @@
 from typing import Any, Dict
+
 from twilio.rest import Client
 
+from backend.app.config import logger
 from backend.app.services.messaging_service import MessagingService
 
 
@@ -16,7 +18,7 @@ class TwilioService(MessagingService):
         from_number = creds.get("twilio_phone_number")
 
         if not all([twilio_sid, twilio_auth_token, from_number]):
-            print("Error: Missing Twilio credentials for sending message.")
+            logger.error("Error: Missing Twilio credentials for sending message.")
             return None
 
         try:
@@ -29,5 +31,7 @@ class TwilioService(MessagingService):
             return message.sid
         except Exception as e:
             # Log the error for debugging
-            print(f"Error sending WhatsApp message via Twilio: {e}")
+            logger.exception(
+                f"Error sending WhatsApp message via Twilio: {e}", exc_info=True
+            )
             return None

@@ -1,35 +1,32 @@
 "use client";
 
-import {
-  WorkflowEditor,
-  WorkflowStep,
-} from "@/components/agents/WorkflowEditor";
+import { WorkflowEditor } from "@/components/agents/WorkflowEditor";
 import { Button } from "@/components/ui/button";
 import { getAgent, updateAgent } from "@/lib/api/agents";
-import { AgentRead as Agent, AgentUpdate } from "@/types/agent";
+import { AgentRead as Agent, AgentUpdate, AgentWorkflowSchema } from "@/types/agent";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 // Imports from details/page.tsx
 import LeadMappingModal from '@/components/agents/LeadMappingModal';
 import TwilioConfigModal from '@/components/agents/TwilioConfigModal';
-import { useLeadWebhookUrl } from '@/hooks/useAgents'; // useAgent and useUpdateAgent are replaced by existing useQuery/useMutation
+import { useLeadWebhookUrl } from '@/hooks/useAgents';
 
 export default function AgentDetailPage() {
   const params = useParams();
   const agentId = params.agentId as string;
   const queryClient = useQueryClient();
 
-  const [workflowSteps, setWorkflowSteps] = useState<WorkflowStep[]>([]);
-  const isInitialWorkflowSet = useRef(false);
+  const [formState, setFormState] = useState({
+    name: "",
+    description: "",
+    persona: "",
+    initialPrompts: "",
+  });
+  const [workflowSchema, setWorkflowSchema] = useState<AgentWorkflowSchema | null>(null);
 
-  // State variables from details/page.tsx
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [persona, setPersona] = useState("");
-  const [initialPrompts, setInitialPrompts] = useState("");
   const [isTwilioConfigModalOpen, setIsTwilioConfigModalOpen] = useState(false);
   const [isLeadMappingModalOpen, setIsLeadMappingModalOpen] = useState(false);
 
@@ -39,32 +36,18 @@ export default function AgentDetailPage() {
     enabled: !!agentId,
   });
 
-  // useLeadWebhookUrl from details/page.tsx
   const { data: leadWebhookUrl, isLoading: isLoadingLeadWebhookUrl } = useLeadWebhookUrl(agentId);
 
   useEffect(() => {
-    if (agent?.workflow_schema && !isInitialWorkflowSet.current) {
-      // Initialize workflow steps
-      const stepsArray = Object.entries(agent.workflow_schema).map(
-        ([id, stepData]) => {
-          const typedStepData = stepData as Omit<WorkflowStep, 'id'>;
-          return {
-            id,
-            ...typedStepData,
-          };
-        }
-      ); setTimeout(() => {
-        setWorkflowSteps(stepsArray);
-        isInitialWorkflowSet.current = true;
-      }, 0);
-    }
-    // Initialize form fields from agent data
     if (agent) {
       setTimeout(() => {
-        setName(agent.name);
-        setDescription(agent.description || "");
-        setPersona(agent.persona || "");
-        setInitialPrompts(agent.initial_prompts || "");
+        setFormState({
+          name: agent.name,
+          description: agent.description || "",
+          persona: agent.persona || "",
+          initialPrompts: agent.initial_prompts || "",
+        });
+        setWorkflowSchema(agent.workflow_schema || { nodes: [], edges: [] });
       }, 0);
     }
   }, [agent]);
@@ -77,54 +60,32 @@ export default function AgentDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["agent", agentId] });
     },
     onError: (error) => {
-      toast.error("Failed to save workflow: " + error.message);
+      toast.error("Failed to update agent: " + error.message);
     },
   });
 
-  const handleSaveWorkflow = () => {
+  const handleSave = () => {
     if (!agent) {
       toast.error("Agent data not loaded yet.");
       return;
     }
 
-    const newSchema = workflowSteps.reduce((acc, step) => {
-      const { id, ...stepData } = step;
-      acc[id] = stepData;
-      return acc;
-    }, {} as Record<string, Omit<WorkflowStep, 'id'>>);
-
     const payload: AgentUpdate = {
-      name: agent.name, // Use current name from state
-      description: agent.description, // Use current description from state
-      persona: agent.persona, // Use current persona from state
-      initial_prompts: agent.initial_prompts, // Use current initial_prompts from state
-      workflow_schema: newSchema,
+      ...formState,
+      workflow_schema: workflowSchema,
     };
 
     updateAgentMutation.mutate(payload);
   };
 
-  // handleSubmit from details/page.tsx, adapted to use existing updateAgentMutation
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!agent) return;
+  const handleSchemaChange = useCallback((schema: AgentWorkflowSchema) => {
+    setWorkflowSchema(schema);
+  }, []);
 
-    const updatedAgent: AgentUpdate = {
-      name,
-      description: description || undefined,
-      persona: persona || undefined,
-      initial_prompts: initialPrompts || undefined,
-      workflow_schema: agent.workflow_schema, // Keep existing workflow schema
-    };
-
-    updateAgentMutation.mutate(updatedAgent);
-  };
-
-  // handleCopyWebhookUrl from details/page.page.tsx
   const handleCopyWebhookUrl = () => {
     if (leadWebhookUrl) {
       navigator.clipboard.writeText(`${process.env.NEXT_PUBLIC_API_BASE_URL}${leadWebhookUrl}`);
-      toast.success("Webhook URL copied to clipboard!"); // Using sonner toast
+      toast.success("Webhook URL copied to clipboard!");
     }
   };
 
@@ -140,13 +101,13 @@ export default function AgentDetailPage() {
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Edit Agent: {agent.name}</h1>
-        <Button onClick={handleSaveWorkflow} disabled={updateAgentMutation.isPending}>
-          {updateAgentMutation.isPending ? "Saving Workflow..." : "Save Workflow"}
+        <Button onClick={handleSave} disabled={updateAgentMutation.isPending}>
+          {updateAgentMutation.isPending ? "Saving..." : "Save Changes"}
         </Button>
       </div>
 
       {/* Agent Details Form */}
-      <form onSubmit={handleSubmit} className="space-y-6 p-4 border rounded-md bg-white dark:bg-gray-800 shadow">
+      <div className="space-y-6 p-4 border rounded-md bg-white dark:bg-gray-800 shadow">
         <h2 className="text-xl font-bold mb-4">Agent Configuration</h2>
         <div>
           <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -155,8 +116,8 @@ export default function AgentDetailPage() {
           <input
             type="text"
             id="name"
-            value={name}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
+            value={formState.name}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormState(prev => ({ ...prev, name: e.target.value }))}
             required
             className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
           />
@@ -167,8 +128,8 @@ export default function AgentDetailPage() {
           </label>
           <textarea
             id="description"
-            value={description}
-            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)}
+            value={formState.description}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setFormState(prev => ({ ...prev, description: e.target.value }))}
             rows={3}
             className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
           ></textarea>
@@ -179,8 +140,8 @@ export default function AgentDetailPage() {
           </label>
           <textarea
             id="persona"
-            value={persona}
-            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setPersona(e.target.value)}
+            value={formState.persona}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setFormState(prev => ({ ...prev, persona: e.target.value }))}
             rows={3}
             className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
           ></textarea>
@@ -191,31 +152,21 @@ export default function AgentDetailPage() {
           </label>
           <textarea
             id="initialPrompts"
-            value={initialPrompts}
-            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setInitialPrompts(e.target.value)}
+            value={formState.initialPrompts}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setFormState(prev => ({ ...prev, initialPrompts: e.target.value }))}
             rows={3}
             className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
           ></textarea>
         </div>
-        <Button
-          type="submit"
-          className="w-full"
-          disabled={updateAgentMutation.isPending}
-        >
-          {updateAgentMutation.isPending ? "Updating..." : "Update Agent Details"}
-        </Button>
-        {updateAgentMutation.isError && (
-          <p className="text-red-500 text-sm mt-2">
-            Error: {updateAgentMutation.error?.message}
-          </p>
-        )}
-        {updateAgentMutation.isSuccess && (
-          <p className="text-green-500 text-sm mt-2">Agent details updated successfully!</p>
-        )}
-      </form>
+      </div>
 
       {/* Workflow Editor */}
-      <WorkflowEditor steps={workflowSteps} onStepsChange={setWorkflowSteps} />
+      <div className="mt-8 p-4 border rounded-md bg-white dark:bg-gray-800 shadow">
+        <h2 className="text-xl font-bold mb-4">Workflow Editor</h2>
+        {workflowSchema && (
+          <WorkflowEditor initialSchema={workflowSchema} onSchemaChange={handleSchemaChange} />
+        )}
+      </div>
 
       {/* Lead Webhook URL */}
       <div className="mt-8 p-4 border rounded-md bg-white dark:bg-gray-800 shadow">

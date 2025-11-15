@@ -1,12 +1,20 @@
-import { JsonValue } from "./agent";
+
+export type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: JsonValue }
+  | JsonValue[];
 
 export interface StripeProduct {
-  id: string;
-  name: string;
-  description?: string | null;
-  active: boolean;
-  metadata: Record<string, JsonValue>;
+    id: string;
+    name: string;
+    description: string | null;
+    price: number;
+    currency: string;
 }
+
 
 export interface StripePrice {
   id: string;
