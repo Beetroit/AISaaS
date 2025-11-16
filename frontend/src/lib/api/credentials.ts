@@ -38,42 +38,48 @@ export async function deleteCredential(credentialId: string): Promise<void> {
 
 // --- Twilio Specific API Calls ---
 export async function saveTwilioCredentials(
-  userId: string,
   credentials: TwilioCredentials
 ): Promise<AppCredential> {
-  const existingCredentials = await getCredentials();
-  const twilioCredential = existingCredentials.find(
-    (cred) => cred.credential_type === "twilio" && cred.user_id === userId
-  );
+  // Use the dedicated Twilio endpoint for creating/updating credentials
+  // Note: userId is not needed here - backend gets it from authentication token
+  return callApi<AppCredential>("/credentials/twilio", {
+    method: "POST",
+    body: {
+      twilio_account_sid: credentials.twilio_account_sid,
+      twilio_auth_token: credentials.twilio_auth_token,
+      twilio_phone_number: credentials.twilio_phone_number,
+    },
+  });
+}
 
-  if (twilioCredential) {
-    return updateCredential(twilioCredential.id, {
-      credentials_data: credentials,
+export async function getTwilioCredentials(): Promise<AppCredential | null> {
+  try {
+    // Use the dedicated Twilio endpoint to get credentials
+    // Note: userId is not needed here - backend gets it from authentication token
+    const response = await callApi<AppCredential>("/credentials/twilio", {
+      method: "GET",
     });
-  } else {
-    return createCredential({
-      credential_type: "twilio",
-      credentials_data: credentials,
-    });
+    return response;
+  } catch (error: any) {
+    // If no credentials found, return null
+    if (error.status === 404 || error.message?.includes("not found")) {
+      return null;
+    }
+    throw error;
   }
 }
 
-export async function getTwilioCredentials(userId: string): Promise<AppCredential | null> {
-  const credentials = await getCredentials();
-  return (
-    credentials.find(
-      (cred) => cred.credential_type === "twilio" && cred.user_id === userId
-    ) || null
-  );
-}
-
-export async function deleteTwilioCredentials(userId: string): Promise<void> {
-  const credentials = await getCredentials();
-  const twilioCredential = credentials.find(
-    (cred) => cred.credential_type === "twilio" && cred.user_id === userId
-  );
-  if (twilioCredential) {
-    await deleteCredential(twilioCredential.id);
+export async function deleteTwilioCredentials(): Promise<void> {
+  try {
+    await callApi<void>("/credentials/twilio", {
+      method: "DELETE",
+    });
+  } catch (error: any) {
+    // If credentials not found, ignore the error
+    if (error.status === 404 || error.message?.includes("not found")) {
+      return;
+    }
+    throw error;
   }
 }
 

@@ -113,7 +113,7 @@ export function useSaveTwilioCredentials() {
   const { user } = useUser();
   const userId = user?.id;
   return useMutation<AppCredential, Error, { credentials: TwilioCredentials }>({
-    mutationFn: ({ credentials }) => (userId ? saveTwilioCredentials(userId, credentials) : Promise.reject(new Error("User not authenticated."))),
+    mutationFn: ({ credentials }) => (userId ? saveTwilioCredentials(credentials) : Promise.reject(new Error("User not authenticated."))),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["twilioCredentials"] })
     },

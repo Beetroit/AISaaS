@@ -33,9 +33,9 @@ export default function TwilioConfigModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const credentials: TwilioCredentials = {
-      sid,
-      auth_token: authToken,
-      phone_number: phoneNumber,
+      twilio_account_sid: sid,
+      twilio_auth_token: authToken,
+      twilio_phone_number: phoneNumber,
     };
 
     saveTwilioCredentialsMutation.mutate(

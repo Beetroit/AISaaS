@@ -1,17 +1,19 @@
+# noqa: E402
 import asyncio
 import sys
 from pathlib import Path
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 # Add the project root to the Python path
 project_root = Path(__file__).parent.parent.parent
 sys.path.append(str(project_root))
 
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.database import AsyncSessionLocal
-from backend.app.models.node_type import NodeType
-from backend.app.models.pricing_plan import PricingPlan
+from backend.app.database import AsyncSessionLocal  # noqa: E402
+from backend.app.models.node_type import NodeType  # noqa: E402
+from backend.app.models.pricing_plan import PricingPlan  # noqa: E402
 
 
 async def seed_node_types(session: AsyncSession):

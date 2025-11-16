@@ -57,11 +57,17 @@ async def validation_exception_handler(
 ) -> JSONResponse:
     # TODO: Update this to return single regex error message
     error_messages = [
-        error["msg"].replace("Value error, ", "") for error in exc.errors()
+        {
+            "loc": error["loc"][0],
+            "field_name": error["loc"][-1],
+            # TODO: This could be cleaner
+            "message": error["msg"].replace("Value error, ", ""),
+        }
+        for error in exc.errors()
     ]
     return JSONResponse(
         status_code=400,
-        content={"detail": "Validation error", "errors": error_messages},
+        content={"errors": error_messages},
     )
 
 

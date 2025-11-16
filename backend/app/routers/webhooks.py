@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import Response
 from twilio.request_validator import RequestValidator
 
-from backend.app.config import settings
+from backend.app.config import logger, settings
 from backend.app.dependencies import (
     AgentWorkflowServiceDep,
     ChatSessionCRUDDep,
@@ -31,6 +31,20 @@ from backend.app.schemas.workflow_run import WorkflowRunCreate
 router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
 
 
+@router.post("/twilio-callback")
+async def twilio_status_callback(request: Request):
+    """
+    Handles WhatsApp message status callbacks from Twilio.
+    Logs the full received status update.
+    """
+    form_params = await request.form()
+    form_params_dict = {key: value for key, value in form_params.items()}
+
+    logger.info(f"Twilio status callback received: {form_params_dict}")
+
+    return {"status": "received"}
+
+
 @router.post("/twilio")
 async def twilio_whatsapp_webhook(
     request: Request,
@@ -48,6 +62,7 @@ async def twilio_whatsapp_webhook(
     based on the 'To' phone number.
     """
     form_params = await request.form()
+    logger.info(f"Twilio webhook received: {form_params}")
     form_params_dict = {key: value for key, value in form_params.items()}
     to_number = form_params_dict.get("To")
 
@@ -59,12 +74,10 @@ async def twilio_whatsapp_webhook(
     # Find the agent associated with this Twilio phone number
     agent_stmt = (
         select(Agent)
-        .join(Credential)
+        .join(Credential, Agent.user_id == Credential.user_id)
         .where(
             Credential.credential_type == "twilio",
             Credential.phone_number == to_number,
-            Agent.user_id
-            == Credential.user_id,  # Ensure agent and credential belong to the same user
         )
     )
     agent = (await db.execute(agent_stmt)).scalar_one_or_none()

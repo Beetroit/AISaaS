@@ -1,5 +1,4 @@
 
-
 import { WorkflowSchema } from "./workflow";
 
 export interface AgentBase {
@@ -29,7 +28,7 @@ export interface AgentRead extends AgentBase {
 export type AgentWorkflowSchema = WorkflowSchema;
 
 export interface TwilioCredentials extends Record<string, unknown> {
-    sid: string;
-    auth_token: string;
-    phone_number: string;
+    twilio_account_sid: string;
+    twilio_auth_token: string;
+    twilio_phone_number: string;
 }

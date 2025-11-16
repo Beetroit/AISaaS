@@ -1,14 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import { createCredential } from "@/lib/api/credentials";
-import { CredentialCreate } from "@/types/credential";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { saveTwilioCredentials } from "@/lib/api/credentials";
+import { TwilioCredentials } from "@/types/agent";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { toast } from "sonner";
 
 interface TwilioCredentialFormProps {
   onClose: () => void;
@@ -16,13 +16,13 @@ interface TwilioCredentialFormProps {
 
 export function TwilioCredentialForm({ onClose }: TwilioCredentialFormProps) {
   const queryClient = useQueryClient();
-  const [sid, setSid] = useState("");
+  const [accountSid, setAccountSid] = useState("");
   const [authToken, setAuthToken] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [allowConcurrentUse, setAllowConcurrentUse] = useState(false);
 
-  const createCredentialMutation = useMutation({
-    mutationFn: (newCredential: CredentialCreate) => createCredential(newCredential),
+  const saveCredentialMutation = useMutation({
+    mutationFn: (credentials: TwilioCredentials) => saveTwilioCredentials(credentials),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["credentials"] });
       toast.success("Twilio Credential added successfully!");
@@ -36,27 +36,23 @@ export function TwilioCredentialForm({ onClose }: TwilioCredentialFormProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    const newCredential: CredentialCreate = {
-      credential_type: "twilio",
-      credentials_data: {
-        twilio_sid: sid,
-        twilio_auth_token: authToken,
-        phone_number: phoneNumber,
-      },
-      allow_concurrent_use: allowConcurrentUse,
+    const credentials: TwilioCredentials = {
+      twilio_account_sid: accountSid,
+      twilio_auth_token: authToken,
+      twilio_phone_number: phoneNumber,
     };
 
-    createCredentialMutation.mutate(newCredential);
+    saveCredentialMutation.mutate(credentials);
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <Label htmlFor="sid">Account SID</Label>
+        <Label htmlFor="accountSid">Account SID</Label>
         <Input
-          id="sid"
-          value={sid}
-          onChange={(e) => setSid(e.target.value)}
+          id="accountSid"
+          value={accountSid}
+          onChange={(e) => setAccountSid(e.target.value)}
           required
         />
       </div>
@@ -86,8 +82,8 @@ export function TwilioCredentialForm({ onClose }: TwilioCredentialFormProps) {
         />
         <Label htmlFor="allowConcurrentUse">Allow Concurrent Use (Admin Override)</Label>
       </div>
-      <Button type="submit" disabled={createCredentialMutation.isPending}>
-        {createCredentialMutation.isPending ? "Adding..." : "Add Credential"}
+      <Button type="submit" disabled={saveCredentialMutation.isPending}>
+        {saveCredentialMutation.isPending ? "Adding..." : "Add Credential"}
       </Button>
     </form>
   );
