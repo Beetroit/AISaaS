@@ -12,108 +12,8 @@ sys.path.append(str(project_root))
 
 
 from backend.app.database import AsyncSessionLocal  # noqa: E402
-from backend.app.models.node_type import NodeType  # noqa: E402
+
 from backend.app.models.pricing_plan import PricingPlan  # noqa: E402
-
-
-async def seed_node_types(session: AsyncSession):
-    """Seed initial node types for workflow system."""
-    node_types = [
-        # Core workflow actions
-        {
-            "type": "start",
-            "name": "Start",
-            "description": "The entry point of the workflow",
-            "inputs": {},
-            "outputs": {"start_data": "any"},
-        },
-        {
-            "type": "end",
-            "name": "End",
-            "description": "The termination point of the workflow",
-            "inputs": {"end_data": "any"},
-            "outputs": {},
-        },
-        {
-            "type": "ask_question",
-            "name": "Ask a Question",
-            "description": "Pauses the workflow and asks the user a question",
-            "inputs": {"context": "any"},
-            "outputs": {"answer": "string"},
-        },
-        # Business workflow nodes
-        {
-            "type": "send_message",
-            "name": "Send Message",
-            "description": "Send a text message to the user",
-            "inputs": {"message": "The message text to send"},
-            "outputs": {},
-        },
-        {
-            "type": "save_lead",
-            "name": "Save Lead",
-            "description": "Capture and save lead information",
-            "inputs": {
-                "phone": "User phone number",
-                "name": "User name (optional)",
-                "email": "User email (optional)",
-            },
-            "outputs": {"lead_id": "Generated lead ID"},
-        },
-        {
-            "type": "conditional_logic",
-            "name": "Conditional Logic",
-            "description": "Branch based on conditions",
-            "inputs": {
-                "condition": "Condition to evaluate",
-                "true_output": "Output if condition is true",
-                "false_output": "Output if condition is false",
-            },
-            "outputs": {"result": "Result of the condition evaluation"},
-        },
-        {
-            "type": "wait",
-            "name": "Wait",
-            "description": "Add a delay before proceeding",
-            "inputs": {"duration": "Wait duration in seconds"},
-            "outputs": {},
-        },
-        {
-            "type": "api_call",
-            "name": "API Call",
-            "description": "Make an external API call",
-            "inputs": {
-                "url": "API endpoint URL",
-                "method": "HTTP method (GET, POST, etc.)",
-                "headers": "Request headers (JSON)",
-                "body": "Request body (JSON)",
-            },
-            "outputs": {"response": "API response data"},
-        },
-        {
-            "type": "database_query",
-            "name": "Database Query",
-            "description": "Execute a database query",
-            "inputs": {
-                "query": "SQL query to execute",
-                "params": "Query parameters (JSON)",
-            },
-            "outputs": {"results": "Query results"},
-        },
-    ]
-
-    # Check if node types already exist
-    existing_types = await session.execute(select(NodeType))
-    if existing_types.scalars().first():
-        print("Node types already exist, skipping...")
-        return
-
-    for node_type_data in node_types:
-        node_type = NodeType(**node_type_data)
-        session.add(node_type)
-
-    await session.commit()
-    print(f"Seeded {len(node_types)} node types successfully!")
 
 
 async def seed_pricing_plans(session: AsyncSession):
@@ -184,7 +84,6 @@ async def seed_database():
 
     async with AsyncSessionLocal() as session:
         try:
-            await seed_node_types(session)
             await seed_pricing_plans(session)
             print("Database seeding completed successfully!")
         except Exception as e:

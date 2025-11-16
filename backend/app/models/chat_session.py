@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Dict, List
 
-from sqlalchemy import DateTime, ForeignKey, String
+from sqlalchemy import JSON, DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from ulid import ULID
 
@@ -39,6 +39,9 @@ class ChatSession(Base):
     status: Mapped[str] = mapped_column(String(50), default="active")
     current_workflow_step: Mapped[str | None] = mapped_column(
         String(255), nullable=True
+    )
+    lead_collection_state: Mapped[Dict[str, Any] | None] = mapped_column(
+        JSON, nullable=True
     )
 
     user: Mapped["User"] = relationship("User", back_populates="chat_sessions")

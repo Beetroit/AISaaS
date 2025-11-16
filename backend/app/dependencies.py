@@ -16,7 +16,7 @@ from backend.app.crud.chat_session_crud import ChatSessionCRUD, select
 from backend.app.crud.knowledge_base_document_crud import KnowledgeBaseDocumentCRUD
 from backend.app.crud.lead_crud import LeadCRUD
 from backend.app.crud.message_crud import MessageCRUD
-from backend.app.crud.node_type_crud import NodeTypeCRUD
+
 from backend.app.crud.pricing_plan_crud import PricingPlanCRUD
 from backend.app.crud.user_crud import UserCRUD
 from backend.app.crud.workflow_crud import WorkflowCRUD
@@ -99,10 +99,6 @@ def get_workflow_crud(session: AsyncSession = Depends(get_db)) -> WorkflowCRUD:
 
 def get_workflow_run_crud(session: AsyncSession = Depends(get_db)) -> WorkflowRunCRUD:
     return WorkflowRunCRUD(session)
-
-
-def get_node_type_crud(session: AsyncSession = Depends(get_db)) -> NodeTypeCRUD:
-    return NodeTypeCRUD()
 
 
 def get_pricing_plan_crud(session: AsyncSession = Depends(get_db)) -> PricingPlanCRUD:
@@ -248,7 +244,7 @@ KnowledgeBaseDocumentCRUDDep = Annotated[
 ]
 WorkflowCRUDDep = Annotated[WorkflowCRUD, Depends(get_workflow_crud)]
 WorkflowRunCRUDDep = Annotated[WorkflowRunCRUD, Depends(get_workflow_run_crud)]
-NodeTypeCRUDDep = Annotated[NodeTypeCRUD, Depends(get_node_type_crud)]
+
 PricingPlanCRUDDep = Annotated[PricingPlanCRUD, Depends(get_pricing_plan_crud)]
 CredentialServiceDep = Annotated[CredentialService, Depends(get_credential_service)]
 CurrentUser = Annotated[User, Depends(get_current_user)]

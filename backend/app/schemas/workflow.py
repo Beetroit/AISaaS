@@ -4,6 +4,17 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field, field_validator
 
 
+class LeadExtractionConfig(BaseModel):
+    required_fields: List[str] = Field(
+        default_factory=list,
+        description="List of lead fields that are required to be extracted.",
+    )
+    optional_fields: List[str] = Field(
+        default_factory=list,
+        description="List of lead fields that are optional to be extracted.",
+    )
+
+
 class WorkflowNode(BaseModel):
     id: str
     type: str

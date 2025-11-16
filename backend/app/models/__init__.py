@@ -6,7 +6,6 @@ from backend.app.models.credential import Credential
 from backend.app.models.knowledge_base_document import KnowledgeBaseDocument
 from backend.app.models.lead import Lead
 from backend.app.models.message import Message
-from backend.app.models.node_type import NodeType
 from backend.app.models.pricing_plan import PricingPlan
 from backend.app.models.user import User
 from backend.app.models.workflow import Workflow
@@ -23,7 +22,6 @@ __all__ = [
     "KnowledgeBaseDocument",
     "Lead",
     "Message",
-    "NodeType",
     "PricingPlan",
     "User",
     "Workflow",
