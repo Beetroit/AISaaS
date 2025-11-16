@@ -26,6 +26,7 @@ class RetrievalService:
         query: str,
         user_id: str,
         agent_id: str | None = None,
+        document_ids: List[str] | None = None,  # New parameter
         n_results: int = 5,
         collection_name: str = "knowledge_base",
     ) -> List[RelevantChunk]:
@@ -36,7 +37,9 @@ class RetrievalService:
         )
 
         where_clause = {"user_id": user_id}
-        if agent_id:
+        if document_ids:
+            where_clause["id"] = {"$in": document_ids}
+        elif agent_id:  # Fallback to agent_id if no specific document_ids are provided
             where_clause["agent_id"] = agent_id
 
         results = collection.query(

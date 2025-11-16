@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import TYPE_CHECKING, Any, Dict, List
 
 from sqlalchemy import ForeignKey, String
-from sqlalchemy.dialects.postgresql import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from ulid import ULID
 
@@ -15,6 +14,10 @@ from backend.app.models.lead import Lead
 
 # Import related models for type hinting
 from backend.app.models.user import User
+from backend.app.models.workflow import Workflow
+
+if TYPE_CHECKING:
+    from backend.app.models.workflow_run import WorkflowRun
 
 
 class Agent(Base):
@@ -32,7 +35,6 @@ class Agent(Base):
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
     persona: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     initial_prompts: Mapped[str | None] = mapped_column(String(2000), nullable=True)
-    workflow_schema: Mapped[Dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     message_credits: Mapped[int] = mapped_column(default=0, nullable=False)
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id"))
 
@@ -47,6 +49,12 @@ class Agent(Base):
     appointments: Mapped[list[Appointment]] = relationship(
         "Appointment", back_populates="agent"
     )
+    workflows: Mapped[List["Workflow"]] = relationship(
+        "Workflow", secondary="agent_workflows", back_populates="agents"
+    )
+    workflow_runs: Mapped[List["WorkflowRun"]] = relationship(
+        "WorkflowRun", back_populates="agent"
+    )
 
     def __repr__(self) -> str:
         return f"<Agent(id='{self.id}', name='{self.name}', user_id='{self.user_id}')>"
@@ -58,7 +66,6 @@ class Agent(Base):
             "description": self.description,
             "persona": self.persona,
             "initial_prompts": self.initial_prompts,
-            "workflow_schema": self.workflow_schema,
             "message_credits": self.message_credits,
             "user_id": self.user_id,
             "created_at": self.created_at.isoformat() if self.created_at else None,

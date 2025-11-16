@@ -3,12 +3,16 @@
 import {
   Calendar,
   CreditCard,
+  Database,
   DollarSign,
   FileText,
   Home,
   LogOut,
+  Play,
   Plug,
+  Settings,
   Users,
+  Workflow
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -68,11 +72,38 @@ export default function DashboardShell({
             </li>
             <li className="mb-2">
               <Link
+                href="/dashboard/workflows"
+                className="flex items-center p-2 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-200"
+              >
+                <Workflow className="mr-3 h-5 w-5" />
+                Workflows
+              </Link>
+            </li>
+            <li className="mb-2">
+              <Link
+                href="/dashboard/workflow-runs"
+                className="flex items-center p-2 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-200"
+              >
+                <Play className="mr-3 h-5 w-5" />
+                Workflow Runs
+              </Link>
+            </li>
+            <li className="mb-2">
+              <Link
                 href="/dashboard/documents"
                 className="flex items-center p-2 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-200"
               >
                 <FileText className="mr-3 h-5 w-5" />
                 Documents
+              </Link>
+            </li>
+            <li className="mb-2">
+              <Link
+                href="/dashboard/credentials"
+                className="flex items-center p-2 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-200"
+              >
+                <Database className="mr-3 h-5 w-5" />
+                Credentials
               </Link>
             </li>
             <li className="mb-2">
@@ -91,6 +122,15 @@ export default function DashboardShell({
               >
                 <Calendar className="mr-3 h-5 w-5" />
                 Appointments
+              </Link>
+            </li>
+            <li className="mb-2">
+              <Link
+                href="/dashboard/reports"
+                className="flex items-center p-2 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors duration-200"
+              >
+                <Settings className="mr-3 h-5 w-5" />
+                Reports
               </Link>
             </li>
             <li className="mb-2">

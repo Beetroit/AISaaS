@@ -1,11 +1,32 @@
 "use client";
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import AuthModal from '../components/AuthModal';
+import { getPricingPlans, PricingPlan } from '../lib/api/pricing';
 
 export default function LandingPage() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [pricingPlans, setPricingPlans] = useState<PricingPlan[]>([]);
+  const [pricingLoading, setPricingLoading] = useState(true);
+  const [pricingError, setPricingError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchPricingPlans() {
+      try {
+        const plans = await getPricingPlans();
+        setPricingPlans(plans);
+      } catch (error) {
+        console.error('Failed to fetch pricing plans:', error);
+        setPricingError('Failed to load pricing plans');
+      } finally {
+        setPricingLoading(false);
+      }
+    }
+
+    fetchPricingPlans();
+  }, []);
+
   return (
     <>
       {/* Navegación Fija (Similar a Apple) */}
@@ -121,19 +142,19 @@ export default function LandingPage() {
                   <div
                     className="bg-blue-600 text-white p-3 rounded-xl max-w-xs text-right shadow-md"
                   >
-                    &quot;¿Cuál es el precio del modelo Pro y qué
-                    incluye?&quot;
+                    "¿Cuál es el precio del modelo Pro y qué
+                    incluye?"
                   </div>
                 </div>
                 <div className="flex justify-start">
                   <div
                     className="bg-blue-100 p-3 rounded-xl max-w-xs text-left shadow-sm"
                   >
-                    &quot;El modelo Pro incluye el paquete de 2500
+                    "El modelo Pro incluye el paquete de 2500
                     créditos (mensajes) y la Tabla de Gestión de
                     Leads PRO. Toda la información está
-                    detallada en el PDF &quot;Precios 2025&quot; que
-                    subiste.&quot;
+                    detallada en el PDF "Precios 2025" que
+                    subiste."
                   </div>
                 </div>
               </div>
@@ -555,9 +576,9 @@ export default function LandingPage() {
             <blockquote
               className="text-2xl italic font-serif leading-relaxed text-blue-100"
             >
-              &quot;El 72% de los consumidores percibe las marcas con
+              "El 72% de los consumidores percibe las marcas con
               atención IA como más innovadoras, lo que mejora el
-              posicionamiento competitivo.&quot;
+              posicionamiento competitivo."
             </blockquote>
           </div>
         </div>
@@ -650,7 +671,7 @@ export default function LandingPage() {
                       >
                     </td>
                     <td className="px-3 py-3">
-                      &quot;¿Hay descuento por volumen?&quot;
+                      "¿Hay descuento por volumen?"
                     </td>
                   </tr>
                   <tr className="bg-white border-b">
@@ -666,7 +687,7 @@ export default function LandingPage() {
                       >
                     </td>
                     <td className="px-3 py-3">
-                      &quot;¿Qué archivos subo?&quot;
+                      "¿Qué archivos subo?"
                     </td>
                   </tr>
                   <tr className="bg-white border-b">
@@ -682,7 +703,7 @@ export default function LandingPage() {
                       >
                     </td>
                     <td className="px-3 py-3">
-                      &quot;Necesito 5.000 mensajes.&quot;
+                      "Necesito 5.000 mensajes."
                     </td>
                   </tr>
                 </tbody>
@@ -707,9 +728,9 @@ export default function LandingPage() {
               <p
                 className="text-2xl font-serif text-gray-800 mb-6 leading-relaxed"
               >
-                &quot;La subida de archivos es revolucionaria. Nuestro
+                "La subida de archivos es revolucionaria. Nuestro
                 bot contestó correctamente sobre un producto nicho
-                en segundos. ¡Increíble la precisión!&quot;
+                en segundos. ¡Increíble la precisión!"
               </p>
               <div className="flex items-center space-x-3">
                 <div
@@ -735,9 +756,9 @@ export default function LandingPage() {
               <p
                 className="text-2xl font-serif text-gray-800 mb-6 leading-relaxed"
               >
-                &quot;Necesitábamos un modelo por créditos y HelixAI fue
+                "Necesitábamos un modelo por créditos y HelixAI fue
                 la solución perfecta. Control total de nuestro gasto
-                y una IA super inteligente.&quot;
+                y una IA super inteligente."
               </p>
               <div className="flex items-center space-x-3">
                 <div
@@ -763,9 +784,9 @@ export default function LandingPage() {
               <p
                 className="text-2xl font-serif text-gray-800 mb-6 leading-relaxed"
               >
-                &quot;Teníamos 10.000 mensajes sin contestar. Con 5.000
+                "Teníamos 10.000 mensajes sin contestar. Con 5.000
                 créditos de HelixAI, solucionamos el cuello de
-                botella en 48 horas. Simplemente funciona.&quot;
+                botella en 48 horas. Simplemente funciona."
               </p>
               <div className="flex items-center space-x-3">
                 <div
@@ -787,7 +808,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Sección de Precios (Planes de Créditos/Mensajes) */}
+      {/* Sección de Precios (Planes de Créditos/Mensajes) - Dynamic Pricing */}
       <section id="planes" className="py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl font-bold mb-4">
@@ -799,160 +820,76 @@ export default function LandingPage() {
             solo los mensajes que uses. Cero sorpresas.
           </p>
 
-          <div className="grid md:grid-cols-3 gap-8 items-stretch">
-            {/* Plan 1: 1500 Mensajes */}
-            <div
-              className="plan card bg-gray-50 p-8 rounded-3xl border border-gray-200 flex flex-col justify-between"
-            >
-              <div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                  Iniciador
-                </h3>
-                <p
-                  className="text-sm font-semibold uppercase text-gray-500 mb-1"
-                >
-                  El punto de partida ideal
-                </p>
-                <p
-                  className="text-5xl font-extrabold text-blue-600 my-6"
-                >
-                  1.500
-                </p>
-                <p className="text-lg text-gray-600 mb-8">
-                  Créditos de Mensajes IA
-                </p>
-                <ul className="text-left space-y-3 text-gray-700 mb-10">
-                  <li className="flex items-center">
-                    <span className="text-green-500 mr-2">✓</span>
-                    **Tabla de Gestión de Leads (CRM Lite)**
-                  </li>
-                  <li className="flex items-center">
-                    <span className="text-green-500 mr-2">✓</span> 1
-                    Espacio para Archivo de Negocio
-                  </li>
-                  <li className="flex items-center">
-                    <span className="text-green-500 mr-2">✓</span>
-                    Acceso a 1 Canal (Web/WhatsApp)
-                  </li>
-                  <li className="flex items-center">
-                    <span className="text-green-500 mr-2">✓</span>
-                    Soporte por Email Estándar
-                  </li>
-                </ul>
-              </div>
-              <Link
-                href="#"
-                className="btn-primary bg-gray-100 text-gray-800 border border-gray-300 py-3 rounded-full font-semibold hover:bg-gray-200 text-center"
-              >
-                Comprar por [Precio X]
-              </Link>
+          {pricingLoading ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
             </div>
-
-            {/* Plan 2: 2500 Mensajes (Destacado - Más Atractivo) */}
-            <div
-              className="plan card plan-destacado text-white p-10 rounded-3xl border border-blue-800 flex flex-col justify-between shadow-2xl transform scale-105"
-            >
-              <div>
-                <p
-                  className="text-xs font-bold uppercase tracking-widest bg-white text-blue-600 px-3 py-1 rounded-full inline-block mb-3"
-                >
-                  ⭐ MÁS POPULAR
-                </p>
-                <h3 className="text-3xl font-bold mb-2">Negocio Pro</h3>
-                <p
-                  className="text-sm font-semibold uppercase opacity-90 mb-1"
-                >
-                  El mejor balance para crecer
-                </p>
-                <p className="text-6xl font-black my-6">2.500</p>
-                <p className="text-xl mb-8 opacity-90">
-                  Créditos de Mensajes IA
-                </p>
-                <ul className="text-left space-y-3 mb-10">
-                  <li className="flex items-center">
-                    <span className="text-yellow-300 mr-2">★</span>
-                    **Tabla de Gestión de Leads PRO**
-                    (Integración Avanzada)
-                  </li>
-                  <li className="flex items-center">
-                    <span className="text-yellow-300 mr-2">★</span>
-                    3 Espacios para Archivos de Negocio
-                  </li>
-                  <li className="flex items-center">
-                    <span className="text-yellow-300 mr-2">★</span>
-                    Acceso a 3 Canales Integrados
-                  </li>
-                  <li className="flex items-center">
-                    <span className="text-yellow-300 mr-2">★</span>
-                    Soporte Prioritario 24/7
-                  </li>
-                  <li className="flex items-center">
-                    <span className="text-yellow-300 mr-2">★</span>
-                    Análisis de Rendimiento Completo
-                  </li>
-                </ul>
-              </div>
-              <Link
-                href="#"
-                className="btn-primary bg-white text-blue-600 py-4 rounded-full text-lg font-bold hover:bg-gray-100 text-center shadow-lg"
-              >
-                Comprar por [Precio Y]
-              </Link>
+          ) : pricingError ? (
+            <div className="text-center py-12">
+              <p className="text-red-600">{pricingError}</p>
+              <p className="text-gray-500 mt-2">Por favor, recarga la página o intenta más tarde.</p>
             </div>
-
-            {/* Plan 3: 5000 Mensajes */}
-            <div
-              className="plan card bg-gray-50 p-8 rounded-3xl border border-gray-200 flex flex-col justify-between"
-            >
-              <div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                  Escala Máxima
-                </h3>
-                <p
-                  className="text-sm font-semibold uppercase text-gray-500 mb-1"
+          ) : (
+            <div className="grid md:grid-cols-3 gap-8 items-stretch">
+              {pricingPlans.map((plan) => (
+                <div
+                  key={plan.id}
+                  className={`plan card ${plan.popular
+                      ? 'plan-destacado text-white p-10 rounded-3xl border border-blue-800 flex flex-col justify-between shadow-2xl transform scale-105'
+                      : 'bg-gray-50 p-8 rounded-3xl border border-gray-200 flex flex-col justify-between'
+                    }`}
                 >
-                  Para grandes volúmenes de tráfico
-                </p>
-                <p
-                  className="text-5xl font-extrabold text-blue-600 my-6"
-                >
-                  5.000
-                </p>
-                <p className="text-lg text-gray-600 mb-8">
-                  Créditos de Mensajes IA
-                </p>
-                <ul className="text-left space-y-3 text-gray-700 mb-10">
-                  <li className="flex items-center">
-                    <span className="text-green-500 mr-2">✓</span>
-                    **Tabla de Gestión de Leads Avanzada**
-                  </li>
-                  <li className="flex items-center">
-                    <span className="text-green-500 mr-2">✓</span> 5
-                    Espacios para Archivos de Negocio
-                  </li>
-                  <li className="flex items-center">
-                    <span className="text-green-500 mr-2">✓</span>
-                    Canales Ilimitados
-                  </li>
-                  <li className="flex items-center">
-                    <span className="text-green-500 mr-2">✓</span>
-                    Consultoría de IA Dedicada
-                  </li>
-                </ul>
-              </div>
-              <Link
-                href="#"
-                className="btn-primary bg-gray-100 text-gray-800 border border-gray-300 py-3 rounded-full font-semibold hover:bg-gray-200 text-center"
-              >
-                Comprar por [Precio Z]
-              </Link>
+                  <div>
+                    {plan.popular && (
+                      <p className="text-xs font-bold uppercase tracking-widest bg-white text-blue-600 px-3 py-1 rounded-full inline-block mb-3">
+                        ⭐ MÁS POPULAR
+                      </p>
+                    )}
+                    <h3 className={`text-2xl font-bold mb-2 ${plan.popular ? 'text-white' : 'text-gray-900'
+                      }`}>
+                      {plan.name}
+                    </h3>
+                    <p className={`text-sm font-semibold uppercase mb-1 ${plan.popular ? 'opacity-90' : 'text-gray-500'
+                      }`}>
+                      {plan.description}
+                    </p>
+                    <p className={`text-5xl font-extrabold my-6 ${plan.popular ? 'text-white' : 'text-blue-600'
+                      }`}>
+                      {plan.credits.toLocaleString()}
+                    </p>
+                    <p className={`text-lg mb-8 ${plan.popular ? 'opacity-90' : 'text-gray-600'
+                      }`}>
+                      Créditos de Mensajes IA
+                    </p>
+                    <ul className={`text-left space-y-3 mb-10 ${plan.popular ? 'text-white' : 'text-gray-700'
+                      }`}>
+                      {plan.features.map((feature, index) => (
+                        <li key={index} className="flex items-center">
+                          <span className={`mr-2 ${plan.popular ? 'text-yellow-300' : 'text-green-500'
+                            }`}>
+                            {plan.popular ? '★' : '✓'}
+                          </span>
+                          {feature}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <Link
+                    href="#"
+                    className={`py-3 rounded-full font-semibold text-center ${plan.popular
+                        ? 'bg-white text-blue-600 py-4 text-lg font-bold hover:bg-gray-100 shadow-lg'
+                        : 'bg-gray-100 text-gray-800 border border-gray-300 hover:bg-gray-200'
+                      }`}
+                  >
+                    Comprar por {plan.price}
+                  </Link>
+                </div>
+              ))}
             </div>
-          </div>
+          )}
 
           <p className="mt-16 text-center text-sm text-gray-500">
-            *Los precios de ejemplo ([Precio X], [Precio Y], [Precio Z])
-            deben ser reemplazados por los precios reales en dólares o
-            tu moneda local.
+            *Los precios pueden variar según tu ubicación y moneda local.
           </p>
         </div>
       </section>

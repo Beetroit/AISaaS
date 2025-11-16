@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from backend.app.models.lead import Lead
     from backend.app.models.message import Message
     from backend.app.models.user import User
+    from backend.app.models.workflow_run import WorkflowRun
 
 
 class ChatSession(Base):
@@ -45,6 +46,9 @@ class ChatSession(Base):
     leads: Mapped[list["Lead"]] = relationship("Lead", back_populates="chat_session")
     messages: Mapped[List["Message"]] = relationship(
         "Message", back_populates="chat_session", order_by="Message.created_at"
+    )
+    workflow_run: Mapped["WorkflowRun"] = relationship(
+        "WorkflowRun", back_populates="chat_session"
     )
 
     def __repr__(self) -> str:

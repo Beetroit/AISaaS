@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import React, { useState } from "react";
 import { useGetLeadMapping, useSaveLeadMapping } from "../../hooks/useAgents";
+import { AppCredential } from "../../types/credential";
 import { LeadMappingConfig } from "../../types/lead";
 
 interface LeadMappingModalProps {
@@ -29,8 +30,10 @@ export default function LeadMappingModal({
   const { data: existingMapping, isLoading: isLoadingMapping } = useGetLeadMapping(agentId);
 
   const [fieldMap, setFieldMap] = useState(() => {
-    if (existingMapping) {
-      const mapEntries = Object.entries(existingMapping.field_map).map(([webhookField, leadField]) => ({
+    const cred = existingMapping as AppCredential | undefined;
+    if (cred?.credentials_data) {
+      const data = cred.credentials_data as unknown as LeadMappingConfig;
+      const mapEntries = Object.entries(data.field_map).map(([webhookField, leadField]) => ({
         webhookField,
         leadField: String(leadField),
       }));
@@ -40,8 +43,10 @@ export default function LeadMappingModal({
   });
 
   const [defaultValues, setDefaultValues] = useState(() => {
-    if (existingMapping) {
-      const defaultEntries = Object.entries(existingMapping.default_values).map(([field, value]) => ({
+    const cred = existingMapping as AppCredential | undefined;
+    if (cred?.credentials_data) {
+      const data = cred.credentials_data as unknown as LeadMappingConfig;
+      const defaultEntries = Object.entries(data.default_values).map(([field, value]) => ({
         field,
         value: String(value),
       }));
@@ -101,7 +106,7 @@ export default function LeadMappingModal({
     };
 
     saveLeadMappingMutation.mutate(
-      { agentId, config },
+      { config },
       {
         onSuccess: () => {
           onClose();

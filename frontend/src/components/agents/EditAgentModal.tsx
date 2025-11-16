@@ -3,6 +3,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import React, { useCallback, useState } from "react";
 import { useAgent, useUpdateAgent } from "../../hooks/useAgents";
+ 
 import { AgentUpdate, AgentWorkflowSchema } from "../../types/agent";
 import { WorkflowEditor } from "./WorkflowEditor";
 
@@ -45,7 +46,7 @@ export default function EditAgentModal({ isOpen, onClose, agentId }: EditAgentMo
     e.preventDefault();
     const updatedAgent: AgentUpdate = {
       ...formState,
-      workflow_schema: workflowSchema,
+      workflow_schema: workflowSchema || undefined,
     };
 
     updateAgentMutation.mutate(

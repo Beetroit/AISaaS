@@ -1,31 +1,40 @@
 "use client";
 
-import React from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useFeedback } from "@/context/FeedbackContext";
+import { useUser } from "@/hooks/useUser";
+import { ApiError } from "@/lib/api/core";
 import {
-  getLeadWebhookUrl,
-  generateNewLeadWebhookUrl,
   deleteLeadWebhookUrl,
+  generateNewLeadWebhookUrl,
+  getLeadWebhookUrl,
   LeadWebhookSecretData,
 } from "@/lib/api/credentials";
-import { ApiError } from "@/lib/api/core";
+import { AppCredential } from "@/types/credential";
 
 export function LeadWebhookConfig() {
   const queryClient = useQueryClient();
   const { showFeedback } = useFeedback();
+  const { user } = useUser();
+  const userId = user?.id;
 
-  const { data: webhookCredential, isLoading: isLoadingWebhook } = useQuery({
-    queryKey: ["leadWebhookUrl"],
-    queryFn: getLeadWebhookUrl,
+  const { data: webhookCredential, isLoading: isLoadingWebhook } = useQuery<AppCredential | null>({
+    queryKey: ["leadWebhookUrl", userId],
+    queryFn: () => (userId ? getLeadWebhookUrl(userId) : Promise.resolve(null)),
+    enabled: !!userId,
   });
 
   const generateMutation = useMutation({
-    mutationFn: generateNewLeadWebhookUrl,
+    mutationFn: () => {
+      if (!userId) {
+        throw new Error("User not authenticated.");
+      }
+      return generateNewLeadWebhookUrl(userId);
+    },
     onSuccess: (data) => {
       showFeedback("success", "New lead webhook URL generated successfully!");
       queryClient.setQueryData(["leadWebhookUrl"], data);
@@ -42,7 +51,12 @@ export function LeadWebhookConfig() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: deleteLeadWebhookUrl,
+    mutationFn: () => {
+      if (!userId) {
+        throw new Error("User not authenticated.");
+      }
+      return deleteLeadWebhookUrl(userId);
+    },
     onSuccess: () => {
       showFeedback("success", "Lead webhook URL deleted successfully!");
       queryClient.invalidateQueries({ queryKey: ["leadWebhookUrl"] });
@@ -82,7 +96,7 @@ export function LeadWebhookConfig() {
         >
           {generateMutation.isPending ? "Generating..." : "Generate New URL"}
         </Button>
-        {webhookCredential && (
+        {webhookCredential ? (
           <Button
             type="button"
             variant="destructive"
@@ -91,7 +105,7 @@ export function LeadWebhookConfig() {
           >
             {deleteMutation.isPending ? "Deleting..." : "Delete URL"}
           </Button>
-        )}
+        ) : null}
       </div>
     </div>
   );

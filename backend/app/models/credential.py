@@ -25,7 +25,6 @@ class Credential(Base):
         String(50), index=True, unique=True, nullable=True
     )
     credentials_data: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
-
     user: Mapped["User"] = relationship("User", back_populates="credentials")
 
     def __repr__(self) -> str:
@@ -36,6 +35,7 @@ class Credential(Base):
             "id": self.id,
             "user_id": self.user_id,
             "credential_type": self.credential_type,
+            "phone_number": self.phone_number,
             "credentials_data": self.credentials_data,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,

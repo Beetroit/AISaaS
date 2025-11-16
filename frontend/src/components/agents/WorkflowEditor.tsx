@@ -7,16 +7,14 @@ import ReactFlow, {
   applyNodeChanges,
   Background,
   Controls,
-  Edge,
-  Node,
   OnConnect,
   OnEdgesChange,
-  OnNodesChange,
+  OnNodesChange
 } from "reactflow";
 import "reactflow/dist/style.css";
 
 import { AgentWorkflowSchema } from "@/types/agent";
-import { NodeType } from "@/types/workflow";
+import { NodeType, WorkflowEdge, WorkflowNode } from "@/types/workflow";
 import { CustomNode } from "./workflow/CustomNode";
 import { NodePalette } from "./workflow/NodePalette";
 
@@ -31,20 +29,20 @@ const getId = () => `dndnode_${id++}`;
 export const WorkflowEditor = ({ initialSchema, onSchemaChange }: WorkflowEditorProps) => {
   const nodeTypes = useMemo(() => ({ custom: CustomNode }), []);
 
-  const [nodes, setNodes] = useState<Node[]>(initialSchema?.nodes || []);
-  const [edges, setEdges] = useState<Edge[]>(initialSchema?.edges || []);
+  const [nodes, setNodes] = useState<WorkflowNode[]>(initialSchema?.nodes || []);
+  const [edges, setEdges] = useState<WorkflowEdge[]>(initialSchema?.edges || []);
 
   const onNodesChange: OnNodesChange = useCallback(
-    (changes) => setNodes((nds) => applyNodeChanges(changes, nds)),
+    (changes) => setNodes((nds) => applyNodeChanges(changes, nds) as WorkflowNode[]),
     [setNodes]
   );
   const onEdgesChange: OnEdgesChange = useCallback(
-    (changes) => setEdges((eds) => applyEdgeChanges(changes, eds)),
+    (changes) => setEdges((eds) => applyEdgeChanges(changes, eds) as WorkflowEdge[]),
     [setEdges]
   );
 
   const onConnect: OnConnect = useCallback(
-    (connection) => setEdges((eds) => addEdge(connection, eds)),
+    (connection) => setEdges((eds) => addEdge(connection, eds) as WorkflowEdge[]),
     [setEdges]
   );
 
@@ -71,7 +69,7 @@ export const WorkflowEditor = ({ initialSchema, onSchemaChange }: WorkflowEditor
         y: event.clientY - reactFlowBounds.top,
       };
 
-      const newNode: Node = {
+      const newNode: WorkflowNode = {
         id: getId(),
         type: 'custom',
         position,

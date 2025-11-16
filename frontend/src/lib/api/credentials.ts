@@ -1,81 +1,154 @@
-import { ApiError, callApi } from "./core";
+import { TwilioCredentials } from "../../types/agent";
+import { AppCredential, CredentialCreate, CredentialUpdate } from "../../types/credential";
+import { LeadMappingConfig } from "../../types/lead";
+import { callApi } from "./core";
 
-export interface TwilioCredentials {
-  account_sid: string;
-  auth_token: string;
-  whatsapp_number: string;
-}
-
-export interface LeadWebhookSecretData {
-  secret: string;
-  agent_id: string;
+export interface LeadWebhookSecretData extends Record<string, unknown> {
   url: string;
+  secret: string;
 }
 
-export interface CredentialResponse {
-  id: string;
-  user_id: string;
-  credential_type: string;
-  credentials_data: TwilioCredentials | LeadWebhookSecretData
-  created_at: string;
-  updated_at: string;
+export async function createCredential(credential: CredentialCreate): Promise<AppCredential> {
+  return callApi<AppCredential>("/credentials/", {
+    method: "POST",
+    body: credential,
+  });
 }
 
-export interface TwilioCredentialResponse extends Omit<CredentialResponse, 'credentials_data'> {
-  credentials_data: TwilioCredentials;
+export async function getCredentials(): Promise<AppCredential[]> {
+  return callApi<AppCredential[]>("/credentials/");
 }
 
+export async function getCredential(credentialId: string): Promise<AppCredential> {
+  return callApi<AppCredential>(`/credentials/${credentialId}`);
+}
+
+export async function updateCredential(credentialId: string, credential: CredentialUpdate): Promise<AppCredential> {
+  return callApi<AppCredential>(`/credentials/${credentialId}`, {
+    method: "PUT",
+    body: credential,
+  });
+}
+
+export async function deleteCredential(credentialId: string): Promise<void> {
+  return callApi<void>(`/credentials/${credentialId}`, {
+    method: "DELETE",
+  });
+}
+
+// --- Twilio Specific API Calls ---
 export async function saveTwilioCredentials(
-  accountSid: string,
-  authToken: string,
-  whatsappNumber: string
-): Promise<TwilioCredentialResponse> {
-  return callApi<TwilioCredentialResponse>("/credentials/twilio", {
-    method: "POST",
-    body: {
-      account_sid: accountSid,
-      auth_token: authToken,
-      whatsapp_number: whatsappNumber,
-    },
-  });
-}
+  userId: string,
+  credentials: TwilioCredentials
+): Promise<AppCredential> {
+  const existingCredentials = await getCredentials();
+  const twilioCredential = existingCredentials.find(
+    (cred) => cred.credential_type === "twilio" && cred.user_id === userId
+  );
 
-export async function getTwilioCredentials(): Promise<TwilioCredentialResponse | null> {
-  try {
-    return await callApi<TwilioCredentialResponse>("/credentials/twilio");
-  } catch (error: unknown) {
-    if (error instanceof ApiError && error.statusCode === 404) {
-      return null
-    }
-    throw error;
+  if (twilioCredential) {
+    return updateCredential(twilioCredential.id, {
+      credentials_data: credentials,
+    });
+  } else {
+    return createCredential({
+      credential_type: "twilio",
+      credentials_data: credentials,
+    });
   }
 }
 
-export async function deleteTwilioCredentials(): Promise<void> {
-  return callApi<void>("/credentials/twilio", {
-    method: "DELETE",
-  });
+export async function getTwilioCredentials(userId: string): Promise<AppCredential | null> {
+  const credentials = await getCredentials();
+  return (
+    credentials.find(
+      (cred) => cred.credential_type === "twilio" && cred.user_id === userId
+    ) || null
+  );
 }
 
-export async function getLeadWebhookUrl(): Promise<CredentialResponse | null> {
-  try {
-    return await callApi<CredentialResponse>("/credentials/lead-webhook");
-  } catch (error: unknown) { // Changed from any
-    if (error instanceof ApiError && error.statusCode === 404) {
-      return null
-    }
-    throw error;
+export async function deleteTwilioCredentials(userId: string): Promise<void> {
+  const credentials = await getCredentials();
+  const twilioCredential = credentials.find(
+    (cred) => cred.credential_type === "twilio" && cred.user_id === userId
+  );
+  if (twilioCredential) {
+    await deleteCredential(twilioCredential.id);
   }
 }
 
-export async function generateNewLeadWebhookUrl(): Promise<CredentialResponse> {
-  return await callApi<CredentialResponse>("/credentials/lead-webhook/generate", {
-    method: "POST",
-  });
+// --- Lead Webhook Specific API Calls ---
+export async function getLeadWebhookUrl(userId: string): Promise<AppCredential | null> {
+  const credentials = await getCredentials();
+  return (
+    credentials.find(
+      (cred) => cred.credential_type === "lead_webhook" && cred.user_id === userId
+    ) || null
+  );
 }
 
-export async function deleteLeadWebhookUrl(): Promise<void> {
-  return callApi<void>("/credentials/lead-webhook", {
-    method: "DELETE",
-  });
+export async function generateNewLeadWebhookUrl(userId: string): Promise<AppCredential> {
+  const existingCredentials = await getCredentials();
+  const leadWebhookCredential = existingCredentials.find(
+    (cred) => cred.credential_type === "lead_webhook" && cred.user_id === userId
+  );
+
+  // This would typically be an API call to the backend to generate a new secret and URL
+  // For now, we'll simulate it or assume the backend handles the generation on create/update
+  const newSecret = Math.random().toString(36).substring(2, 15); // Simulate a new secret
+  const newUrl = `https://api.example.com/webhooks/lead/${userId}?secret=${newSecret}`; // Simulate a new URL
+
+  const webhookData: LeadWebhookSecretData = { url: newUrl, secret: newSecret };
+
+  if (leadWebhookCredential) {
+    return updateCredential(leadWebhookCredential.id, {
+      credentials_data: webhookData,
+    });
+  } else {
+    return createCredential({
+      credential_type: "lead_webhook",
+      credentials_data: webhookData,
+    });
+  }
+}
+
+export async function deleteLeadWebhookUrl(userId: string): Promise<void> {
+  const credentials = await getCredentials();
+  const leadWebhookCredential = credentials.find(
+    (cred) => cred.credential_type === "lead_webhook" && cred.user_id === userId
+  );
+  if (leadWebhookCredential) {
+    await deleteCredential(leadWebhookCredential.id);
+  }
+}
+
+// --- Lead Mapping Specific API Calls ---
+export async function getLeadMapping(userId: string): Promise<AppCredential | null> {
+  const credentials = await getCredentials();
+  return (
+    credentials.find(
+      (cred) => cred.credential_type === "lead_mapping" && cred.user_id === userId
+    ) || null
+  );
+}
+
+export async function saveLeadMapping(
+  userId: string,
+  config: LeadMappingConfig
+): Promise<AppCredential> {
+  const existingCredentials = await getCredentials();
+  const leadMappingCredential = existingCredentials.find(
+    (cred) => cred.credential_type === "lead_mapping" && cred.user_id === userId
+  );
+
+  if (leadMappingCredential) {
+    return updateCredential(leadMappingCredential.id, {
+      credentials_data: config as unknown as Record<string, unknown>,
+    });
+  } else {
+    return createCredential({
+      credential_type: "lead_mapping",
+      credentials_data: config as unknown as Record<string, unknown>,
+    });
+  }
 }

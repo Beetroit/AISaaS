@@ -22,7 +22,7 @@ interface TwilioConfigModalProps {
 export default function TwilioConfigModal({
   isOpen,
   onClose,
-  agentId,
+  agentId: _agentId,
 }: TwilioConfigModalProps) {
   const [sid, setSid] = useState("");
   const [authToken, setAuthToken] = useState("");
@@ -39,7 +39,7 @@ export default function TwilioConfigModal({
     };
 
     saveTwilioCredentialsMutation.mutate(
-      { agentId, credentials },
+      { credentials },
       {
         onSuccess: () => {
           onClose();

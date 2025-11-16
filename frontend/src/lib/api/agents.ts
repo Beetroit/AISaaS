@@ -1,5 +1,4 @@
-import { AgentCreate, AgentRead, AgentUpdate, TwilioCredentials } from "../../types/agent";
-import { LeadMappingConfig } from "../../types/lead";
+import { AgentCreate, AgentRead, AgentUpdate } from "../../types/agent";
 import { callApi } from "./core";
 
 export async function createAgent(agent: AgentCreate): Promise<AgentRead> {
@@ -37,33 +36,5 @@ export async function updateAgent(agentId: string, agent: AgentUpdate): Promise<
 export async function deleteAgent(agentId: string): Promise<void> {
   return callApi<void>(`/agents/${agentId}`, {
     method: "DELETE",
-  });
-}
-
-export async function saveTwilioCredentials(
-  agentId: string,
-  credentials: TwilioCredentials
-): Promise<AgentRead> {
-  return callApi<AgentRead>(`/agents/${agentId}/twilio-credentials`, {
-    method: "POST",
-    body: credentials,
-  });
-}
-
-export async function getLeadWebhookUrl(agentId: string): Promise<string> {
-  return callApi<string>(`/agents/${agentId}/lead-webhook`);
-}
-
-export async function getLeadMapping(agentId: string): Promise<LeadMappingConfig> {
-  return callApi<LeadMappingConfig>(`/agents/${agentId}/lead-mapping`);
-}
-
-export async function saveLeadMapping(
-  agentId: string,
-  config: LeadMappingConfig
-): Promise<LeadMappingConfig> {
-  return callApi<LeadMappingConfig>(`/agents/${agentId}/lead-mapping`, {
-    method: "POST",
-    body: config,
   });
 }

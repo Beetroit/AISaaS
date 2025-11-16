@@ -12,7 +12,11 @@ class LeadCRUD:
         self.session = session
 
     async def create_lead(
-        self, lead: LeadCreate, user_id: str, agent_id: str, chat_session_id: str
+        self,
+        lead: LeadCreate,
+        user_id: str,
+        agent_id: str,
+        chat_session_id: str,
     ) -> Lead:
         db_lead = Lead(
             **lead.model_dump(),
@@ -32,6 +36,13 @@ class LeadCRUD:
 
     async def get_lead_by_chat_session_id(self, chat_session_id: str) -> Optional[Lead]:
         stmt = select(Lead).where(Lead.chat_session_id == chat_session_id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_lead_by_phone_number(self, phone_number: str) -> Optional[Lead]:
+        stmt = select(Lead).where(
+            Lead.contact_info.op("->>")("phone_number") == phone_number
+        )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 

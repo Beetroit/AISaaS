@@ -32,8 +32,12 @@ lint:
 	cd frontend && npx eslint --fix && npx tsc --noEmit --skipLibCheck && cd ..
 
 seed:
+	@echo "Seeding database with initial data..."
 	@echo "Seeding Stripe products and prices..."
 	uv run backend/app/seed_stripe.py
+	@echo "Seeding node types and pricing plans..."
+	uv run backend/app/seed_db.py
+	@echo "Database seeding completed successfully!"
 
 clean:
 	@echo "Cleaning up Docker Compose services..."

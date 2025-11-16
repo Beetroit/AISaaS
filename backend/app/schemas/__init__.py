@@ -4,6 +4,7 @@ from .knowledge_base_document import (
     KnowledgeBaseDocumentResponse,
 )
 from .retrieval import RelevantChunk
+from .enums import WorkflowRunStatus
 
 __all__ = [
     "UserCreate",
@@ -13,4 +14,5 @@ __all__ = [
     "KnowledgeBaseDocumentCreate",
     "KnowledgeBaseDocumentResponse",
     "RelevantChunk",
+    "WorkflowRunStatus",
 ]

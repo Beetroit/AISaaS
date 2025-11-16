@@ -3,8 +3,6 @@ from datetime import datetime, timezone
 
 import redis.asyncio as redis
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-
 from rich.console import Console
 from rich.logging import RichHandler
 
@@ -56,11 +54,9 @@ class Settings(BaseSettings):
     backend_base_url: str
     redis_host: str = "localhost"
     redis_port: int = 6379
+    allow_concurrent_twilio_use: bool = False  # New setting for admin override
 
 
 settings = Settings.model_validate({})
 
 redis_client = redis.Redis(host=settings.redis_host, port=settings.redis_port, db=0)
-
-for key, value in settings.model_dump().items():
-    print(f"{key} = {value}")

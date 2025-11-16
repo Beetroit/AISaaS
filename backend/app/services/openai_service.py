@@ -144,6 +144,26 @@ class OpenAIService:
 
         raise Exception("Failed to generate GPT-5 response after all retries")
 
+    async def generate_response(
+        self,
+        prompt: str,
+        model: str = settings.gpt5_mini_model,
+        system_prompt: Optional[str] = None,
+        context_documents: Optional[List[str]] = None,
+        **kwargs,
+    ) -> str:
+        response = await self.create_gpt5_response(
+            input=prompt,
+            model=model,
+            system_prompt=system_prompt,
+            context_documents=context_documents,
+            stream=False,
+            **kwargs,
+        )
+        if isinstance(response, AsyncStream):
+            raise TypeError("Expected a non-streaming response, but received a stream.")
+        return response.text[0].text
+
     def _convert_tools_to_gpt5_format(
         self, tools: List[Dict]
     ) -> List[FunctionToolParam]:

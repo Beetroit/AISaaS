@@ -9,7 +9,7 @@ class UserCRUD:
         self.session = session
 
     async def get_user_by_email(self, email: str) -> User | None:
-        result = await self.session.execute(select(User).filter(User.email == email))
+        result = await self.session.execute(select(User).where(User.email == email))
         return result.scalars().first()
 
     async def create_user(self, email: str, hashed_password: str) -> User:

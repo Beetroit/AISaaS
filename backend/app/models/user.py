@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from backend.app.models.credential import Credential
     from backend.app.models.knowledge_base_document import KnowledgeBaseDocument
     from backend.app.models.lead import Lead
+    from backend.app.models.workflow import Workflow
 
 
 class User(Base):
@@ -51,6 +52,9 @@ class User(Base):
     )
     credentials: Mapped[list["Credential"]] = relationship(
         "Credential", back_populates="user"
+    )
+    workflows: Mapped[list["Workflow"]] = relationship(
+        "Workflow", back_populates="user"
     )
 
     def __repr__(self) -> str:

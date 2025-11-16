@@ -1,3 +1,4 @@
+# type: ignore
 import asyncio
 from logging.config import fileConfig
 
@@ -15,7 +16,12 @@ from backend.app.models.chat_session import ChatSession  # noqa: F401
 from backend.app.models.knowledge_base_document import KnowledgeBaseDocument  # noqa: F401
 from backend.app.models.lead import Lead  # noqa: F401
 from backend.app.models.message import Message  # noqa: F401
-
+from backend.app.models.workflow import Workflow  # noqa: F401
+from backend.app.models.credential import Credential  # noqa: F401
+from backend.app.models.workflow_run import WorkflowRun  # noqa: F401
+from backend.app.models.agent_workflow import AgentWorkflow  # noqa: F401
+from backend.app.models.node_type import NodeType  # noqa: F401
+from backend.app.models.pricing_plan import PricingPlan  # noqa: F401
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

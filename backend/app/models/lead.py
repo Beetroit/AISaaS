@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from backend.app.models.appointment import Appointment
     from backend.app.models.chat_session import ChatSession
     from backend.app.models.user import User
+    from backend.app.models.workflow_run import WorkflowRun
 
 __custom_lead_table_prefix = "lead_"
 
@@ -43,6 +44,9 @@ class Lead(Base):
     )
     appointments: Mapped[list[Appointment]] = relationship(
         "Appointment", back_populates="lead"
+    )
+    workflow_run: Mapped["WorkflowRun"] = relationship(
+        "WorkflowRun", back_populates="lead"
     )
 
     def __repr__(self) -> str:

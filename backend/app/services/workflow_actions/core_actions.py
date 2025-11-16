@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 from backend.app.services.workflow_actions.base import BaseAction
 
 
@@ -10,7 +10,10 @@ class StartAction(BaseAction):
     outputs = {"start_data": "any"}
 
     async def execute(
-        self, context: Dict[str, Any], node_data: Dict[str, Any]
+        self,
+        context: Dict[str, Any],
+        node_data: Dict[str, Any],
+        knowledge_base_document_ids: Optional[list[str]] = None,
     ) -> Dict[str, Any]:
         # The start node typically initializes data or simply passes through.
         # For now, it returns an empty dictionary.
@@ -25,7 +28,10 @@ class EndAction(BaseAction):
     outputs = {}
 
     async def execute(
-        self, context: Dict[str, Any], node_data: Dict[str, Any]
+        self,
+        context: Dict[str, Any],
+        node_data: Dict[str, Any],
+        knowledge_base_document_ids: Optional[list[str]] = None,
     ) -> Dict[str, Any]:
         # The end node signifies the completion of a workflow path.
         # It might perform cleanup or logging in the future.
@@ -41,7 +47,10 @@ class AskQuestionAction(BaseAction):
     outputs = {"answer": "string"}
 
     async def execute(
-        self, context: Dict[str, Any], node_data: Dict[str, Any]
+        self,
+        context: Dict[str, Any],
+        node_data: Dict[str, Any],
+        knowledge_base_document_ids: Optional[list[str]] = None,
     ) -> Dict[str, Any]:
         # In the refactored engine, the service will handle the pausing.
         # This action's role is to format the question.

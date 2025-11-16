@@ -3,8 +3,9 @@ import hmac
 import json
 
 import stripe
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import Response
 from twilio.request_validator import RequestValidator
 
@@ -14,12 +15,18 @@ from backend.app.dependencies import (
     ChatSessionCRUDDep,
     CredentialServiceDep,
     LeadCRUDDep,
-    MessageCRUDDep,  # New import
+    MessageCRUDDep,
+    WorkflowRunCRUDDep,
+    get_db,
 )
 from backend.app.models.agent import Agent
+from backend.app.models.credential import Credential
+from backend.app.models.workflow import Workflow
 from backend.app.schemas.chat_session import ChatSessionCreate
+from backend.app.schemas.enums import WorkflowRunStatus
 from backend.app.schemas.lead import LeadCreate
 from backend.app.schemas.message import MessageCreate
+from backend.app.schemas.workflow_run import WorkflowRunCreate
 
 router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
 
@@ -32,6 +39,8 @@ async def twilio_whatsapp_webhook(
     chat_session_crud: ChatSessionCRUDDep,
     lead_crud: LeadCRUDDep,
     message_crud: MessageCRUDDep,
+    workflow_run_crud: WorkflowRunCRUDDep,
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Handles incoming WhatsApp messages from Twilio.
@@ -48,28 +57,42 @@ async def twilio_whatsapp_webhook(
         )
 
     # Find the agent associated with this Twilio phone number
-    agent = await credential_service.get_agent_by_twilio_phone_number(to_number)
+    agent_stmt = (
+        select(Agent)
+        .join(Credential)
+        .where(
+            Credential.credential_type == "twilio",
+            Credential.phone_number == to_number,
+            Agent.user_id
+            == Credential.user_id,  # Ensure agent and credential belong to the same user
+        )
+    )
+    agent = (await db.execute(agent_stmt)).scalar_one_or_none()
+
     if not agent:
         raise HTTPException(
             status_code=404,
             detail=f"No agent found for Twilio phone number: {to_number}",
         )
 
-    # Now that we have the agent, get their specific Twilio auth token for validation
-    twilio_credentials = await credential_service.get_credential(
-        agent.user_id, "twilio"
-    )
-    if not twilio_credentials or "twilio_auth_token" not in twilio_credentials:
+    # Get the specific Twilio credential used for this incoming message
+    (
+        twilio_credential_data,
+        twilio_credential_model,
+    ) = await credential_service.get_credential_and_model(agent.user_id, "twilio")
+    if not twilio_credential_data or not twilio_credential_model:
         raise HTTPException(
             status_code=403,
             detail="Twilio credentials are not configured for this agent.",
         )
 
-    validator = RequestValidator(twilio_credentials["twilio_auth_token"])
+    twilio_auth_token = twilio_credential_data["twilio_auth_token"]
+    validator = RequestValidator(twilio_auth_token)
     request_url = str(request.url)
 
-    if not validator.validate(
-        request_url, form_params_dict, request.headers.get("X-Twilio-Signature", "")
+    x_twilio_signature = request.headers.get("x-twilio-signature")
+    if not x_twilio_signature or not validator.validate(
+        request_url, form_params_dict, x_twilio_signature
     ):
         raise HTTPException(status_code=403, detail="Invalid Twilio signature.")
 
@@ -97,7 +120,7 @@ async def twilio_whatsapp_webhook(
             contact_info={"phone": from_number},
             qualification_status="new",
         )
-        await lead_crud.create_lead(
+        lead = await lead_crud.create_lead(
             lead=lead_create,
             user_id=agent.user_id,
             agent_id=agent.id,
@@ -110,10 +133,58 @@ async def twilio_whatsapp_webhook(
         )
     )
 
+    # --- Workflow Selection and WorkflowRun Creation ---
+    # For simplicity, pick the first associated workflow. In a real scenario,
+    # there might be logic to select a specific workflow.
+    agent_workflows = (
+        (
+            await db.execute(
+                select(Workflow).join(Agent.workflows).where(Agent.id == agent.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if not agent_workflows:
+        raise HTTPException(
+            status_code=404, detail="Agent has no workflows associated."
+        )
+
+    selected_workflow = agent_workflows[0]  # Pick the first one
+
+    # Check and mark Twilio credential as in use
+    if not await credential_service.mark_credential_in_use(
+        twilio_credential_model.id, chat_session.id
+    ):  # Using chat_session.id as a temporary run_id
+        raise HTTPException(
+            status_code=409, detail="Twilio credential is currently in use."
+        )
+
+    workflow_run_create = WorkflowRunCreate(
+        agent_id=agent.id,
+        workflow_id=selected_workflow.id,
+        chat_session_id=chat_session.id,
+        lead_id=lead.id,
+        credential_id=twilio_credential_model.id,
+        status=WorkflowRunStatus.IN_PROGRESS,
+        initial_data={
+            "from_number": from_number,
+            "to_number": to_number,
+            "user_message": incoming_message,
+        },
+    )
+    workflow_run = await workflow_run_crud.create_workflow_run(
+        workflow_run_data=workflow_run_create
+    )
+
     agent_response = await agent_workflow_service.execute_workflow(
-        agent=agent,
-        chat_session=chat_session,
+        workflow_run_id=workflow_run.id,
         user_message=incoming_message,
+    )
+
+    # Mark credential as available after workflow execution (or handle in agent_workflow_service)
+    await credential_service.mark_credential_available(
+        twilio_credential_model.id, workflow_run.id
     )
 
     await message_crud.create_message(
@@ -132,6 +203,9 @@ async def lead_intake_webhook(
     request: Request,
     credential_service: CredentialServiceDep,
     lead_crud: LeadCRUDDep,
+    workflow_run_crud: WorkflowRunCRUDDep,
+    agent_workflow_service: AgentWorkflowServiceDep,
+    db: AsyncSession = Depends(get_db),
 ):
     lead_webhook_secret = await credential_service.get_webhook_secret(
         client_id, "lead_webhook_secret"
@@ -182,7 +256,7 @@ async def lead_intake_webhook(
         # with users/agents/chat_sessions from external webhooks.
         # For demonstration, let's assume we can get agent_id from client_id and user_id from agent.
         agent_stmt = select(Agent).where(Agent.id == client_id)
-        agent = (await lead_crud.session.execute(agent_stmt)).scalar_one_or_none()
+        agent = (await db.execute(agent_stmt)).scalar_one_or_none()
         if not agent:
             raise HTTPException(
                 status_code=404, detail="Agent not found for client_id."
@@ -193,7 +267,44 @@ async def lead_intake_webhook(
             lead=lead_create,
             user_id=agent.user_id,
             agent_id=agent.id,
-            chat_session_id="",  # This might need to be null or derived differently for webhooks
+            chat_session_id=None,  # No chat session for direct lead intake
+        )
+
+        # --- Workflow Selection and WorkflowRun Creation for Lead Intake ---
+        # For simplicity, pick the first associated workflow.
+        agent_workflows = (
+            (
+                await db.execute(
+                    select(Workflow).join(Agent.workflows).where(Agent.id == agent.id)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        if not agent_workflows:
+            raise HTTPException(
+                status_code=404,
+                detail="Agent has no workflows associated for lead intake.",
+            )
+
+        selected_workflow = agent_workflows[0]  # Pick the first one
+
+        workflow_run_create = WorkflowRunCreate(
+            agent_id=agent.id,
+            workflow_id=selected_workflow.id,
+            lead_id=new_lead.id,
+            status=WorkflowRunStatus.IN_PROGRESS,
+            initial_data=webhook_data,  # Store the raw webhook data as initial data
+        )
+        workflow_run = await workflow_run_crud.create_workflow_run(
+            workflow_run_data=workflow_run_create
+        )
+
+        # Initiate workflow execution (e.g., for lead qualification)
+        # The user_message here could be a generic trigger or derived from the lead data
+        await agent_workflow_service.execute_workflow(
+            workflow_run_id=workflow_run.id,
+            user_message="Lead received via webhook. Initiate qualification workflow.",
         )
 
     except Exception as e:
@@ -201,8 +312,6 @@ async def lead_intake_webhook(
             status_code=400, detail=f"Invalid lead data after mapping: {e}"
         )
 
-    # TODO: Store lead in database (requires a CRUD operation for Lead)
-    # For now, just acknowledge receipt
     return {
         "message": f"Lead webhook received and mapped for client {client_id}",
         "lead_data": mapped_lead_data,

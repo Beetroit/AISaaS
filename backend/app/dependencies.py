@@ -16,9 +16,14 @@ from backend.app.crud.chat_session_crud import ChatSessionCRUD, select
 from backend.app.crud.knowledge_base_document_crud import KnowledgeBaseDocumentCRUD
 from backend.app.crud.lead_crud import LeadCRUD
 from backend.app.crud.message_crud import MessageCRUD
+from backend.app.crud.node_type_crud import NodeTypeCRUD
+from backend.app.crud.pricing_plan_crud import PricingPlanCRUD
 from backend.app.crud.user_crud import UserCRUD
+from backend.app.crud.workflow_crud import WorkflowCRUD
+from backend.app.crud.workflow_run_crud import WorkflowRunCRUD
 from backend.app.database import AsyncSessionLocal
 from backend.app.models.user import User
+from backend.app.security import is_token_blacklisted
 from backend.app.services.agent_workflow_service import AgentWorkflowService
 from backend.app.services.ai_service import AIService
 from backend.app.services.credential_service import CredentialService
@@ -28,7 +33,7 @@ from backend.app.services.messaging_service import MessagingService
 from backend.app.services.openai_service import OpenAIService
 from backend.app.services.retrieval_service import RetrievalService
 from backend.app.services.twilio_service import TwilioService
-from backend.app.security import is_token_blacklisted
+from backend.app.services.webhook_service import WebhookService
 
 chroma_client = chromadb.HttpClient(
     host=settings.chroma_host, port=settings.chroma_port
@@ -88,6 +93,22 @@ def get_knowledge_base_document_crud(
     return KnowledgeBaseDocumentCRUD(session)
 
 
+def get_workflow_crud(session: AsyncSession = Depends(get_db)) -> WorkflowCRUD:
+    return WorkflowCRUD(session)
+
+
+def get_workflow_run_crud(session: AsyncSession = Depends(get_db)) -> WorkflowRunCRUD:
+    return WorkflowRunCRUD(session)
+
+
+def get_node_type_crud(session: AsyncSession = Depends(get_db)) -> NodeTypeCRUD:
+    return NodeTypeCRUD()
+
+
+def get_pricing_plan_crud(session: AsyncSession = Depends(get_db)) -> PricingPlanCRUD:
+    return PricingPlanCRUD()
+
+
 def get_chroma_client() -> ClientAPI:
     return chroma_client
 
@@ -135,19 +156,45 @@ def get_google_calendar_service(
 
 def get_agent_workflow_service(
     ai_service: AIService = Depends(get_openai_service),
+    agent_crud: AgentCRUD = Depends(get_agent_crud),
     lead_crud: LeadCRUD = Depends(get_lead_crud),
     chat_session_crud: ChatSessionCRUD = Depends(get_chat_session_crud),
     message_crud: MessageCRUD = Depends(get_message_crud),
     credential_service: CredentialService = Depends(get_credential_service),
     messaging_service: MessagingService = Depends(get_messaging_service),
+    workflow_crud: WorkflowCRUD = Depends(get_workflow_crud),
+    workflow_run_crud: WorkflowRunCRUD = Depends(get_workflow_run_crud),
 ) -> AgentWorkflowService:
     return AgentWorkflowService(
         ai_service=ai_service,
+        agent_crud=agent_crud,
         lead_crud=lead_crud,
         chat_session_crud=chat_session_crud,
         message_crud=message_crud,
         credential_service=credential_service,
         messaging_service=messaging_service,
+        workflow_crud=workflow_crud,
+        workflow_run_crud=workflow_run_crud,
+    )
+
+
+def get_webhook_service(
+    chat_session_crud: ChatSessionCRUD = Depends(get_chat_session_crud),
+    lead_crud: LeadCRUD = Depends(get_lead_crud),
+    message_crud: MessageCRUD = Depends(get_message_crud),
+    workflow_run_crud: WorkflowRunCRUD = Depends(get_workflow_run_crud),
+    agent_workflow_service=Depends(get_agent_workflow_service),
+    credential_service=Depends(get_credential_service),
+) -> "WebhookService":
+    from backend.app.services.webhook_service import WebhookService
+
+    return WebhookService(
+        chat_session_crud=chat_session_crud,
+        lead_crud=lead_crud,
+        message_crud=message_crud,
+        workflow_run_crud=workflow_run_crud,
+        agent_workflow_service=agent_workflow_service,
+        credential_service=credential_service,
     )
 
 
@@ -176,7 +223,7 @@ async def get_current_user(
         raise credentials_exception
 
     user = await db.execute(
-        select(User).options(selectinload(User.agents)).filter(User.id == user_id)
+        select(User).options(selectinload(User.agents)).where(User.id == user_id)
     )
     user = user.scalars().first()
     if user is None:
@@ -199,6 +246,10 @@ MessageCRUDDep = Annotated[MessageCRUD, Depends(get_message_crud)]
 KnowledgeBaseDocumentCRUDDep = Annotated[
     KnowledgeBaseDocumentCRUD, Depends(get_knowledge_base_document_crud)
 ]
+WorkflowCRUDDep = Annotated[WorkflowCRUD, Depends(get_workflow_crud)]
+WorkflowRunCRUDDep = Annotated[WorkflowRunCRUD, Depends(get_workflow_run_crud)]
+NodeTypeCRUDDep = Annotated[NodeTypeCRUD, Depends(get_node_type_crud)]
+PricingPlanCRUDDep = Annotated[PricingPlanCRUD, Depends(get_pricing_plan_crud)]
 CredentialServiceDep = Annotated[CredentialService, Depends(get_credential_service)]
 CurrentUser = Annotated[User, Depends(get_current_user)]
 DBSession = Annotated[AsyncSession, Depends(get_db)]
@@ -214,3 +265,4 @@ GoogleCalendarServiceDep = Annotated[
     GoogleCalendarService, Depends(get_google_calendar_service)
 ]
 ChromaClientDep = Annotated[ClientAPI, Depends(get_chroma_client)]
+WebhookServiceDep = Annotated["WebhookService", Depends(get_webhook_service)]

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 
 class BaseAction(ABC):
@@ -22,6 +22,7 @@ class BaseAction(ABC):
         self,
         context: Dict[str, Any],
         node_data: Dict[str, Any],
+        knowledge_base_document_ids: Optional[list[str]] = None,
         # Add other necessary parameters like db_session, services, etc.
     ) -> Dict[str, Any]:
         """

@@ -1,5 +1,5 @@
 import secrets
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 from fastapi import HTTPException, status
 from google.auth.transport.requests import Request
@@ -8,7 +8,7 @@ from googleapiclient.discovery import build
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.config import settings
+from backend.app.config import logger, settings
 from backend.app.models.agent import Agent
 from backend.app.models.credential import Credential
 from backend.app.schemas.credential import CredentialRead
@@ -43,7 +43,8 @@ class CredentialService:
     ) -> Optional[Credential]:
         result = await self.db.execute(
             select(Credential)
-            .filter_by(user_id=user_id, credential_type=credential_type)
+            .where(Credential.user_id == user_id)
+            .where(Credential.credential_type == credential_type)
             .limit(1)
         )
         return result.scalars().first()
@@ -63,6 +64,24 @@ class CredentialService:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_agent_by_twilio_account_sid(
+        self, account_sid: str
+    ) -> Optional[Agent]:
+        """Finds an agent by their Twilio account SID."""
+        from backend.app.models.user import User
+
+        stmt = (
+            select(Agent)
+            .join(User, Agent.user_id == User.id)
+            .join(Credential, User.id == Credential.user_id)
+            .where(
+                Credential.credential_type == "twilio",
+                Credential.credentials_data.op("->>")("sid") == account_sid,
+            )
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def get_credential(
         self, user_id: str, credential_type: str
     ) -> Optional[Dict[str, Any]]:
@@ -70,6 +89,20 @@ class CredentialService:
         if credential and isinstance(credential.credentials_data, bytes):
             return encryption_helper.decrypt_data(credential.credentials_data)
         return None
+
+    async def get_credential_and_model(
+        self, user_id: str, credential_type: str
+    ) -> Tuple[Optional[Dict[str, Any]], Optional[Credential]]:
+        """Returns both decrypted credential data and the SQLAlchemy model in one DB call."""
+        credential_model = await self.get_credential_by_type(user_id, credential_type)
+        if not credential_model or not isinstance(
+            credential_model.credentials_data, bytes
+        ):
+            return None, None
+        decrypted_data = encryption_helper.decrypt_data(
+            credential_model.credentials_data
+        )
+        return decrypted_data, credential_model
 
     async def update_credential(
         self, user_id: str, credential_type: str, new_data: Dict[str, Any]
@@ -189,6 +222,74 @@ class CredentialService:
 
     async def delete_lead_webhook_credential(self, user_id: str) -> bool:
         return await self.delete_credential(user_id, "lead_webhook_secret")
+
+    async def get_credential_by_id(self, credential_id: str) -> Optional[Credential]:
+        result = await self.db.execute(
+            select(Credential).where(Credential.id == credential_id)
+        )
+        return result.scalars().first()
+
+    async def mark_credential_in_use(
+        self, credential_id: str, workflow_run_id: str
+    ) -> bool:
+        # Check for admin override
+        if settings.allow_concurrent_twilio_use:
+            return True  # Bypass restriction
+
+        from backend.app.models.workflow_run import WorkflowRun
+
+        credential = await self.get_credential_by_id(credential_id)
+        if credential and credential.credential_type == "twilio":
+            # Check if any workflow run is already using this credential
+            result = await self.db.execute(
+                select(WorkflowRun).where(WorkflowRun.credential_id == credential_id)
+            )
+            existing_run = result.scalars().first()
+
+            if existing_run is None:
+                # Assign the credential to the workflow run
+                await self.db.execute(
+                    select(WorkflowRun)
+                    .where(WorkflowRun.id == workflow_run_id)
+                    .with_for_update()
+                )
+                workflow_run = result.scalars().first()
+                if workflow_run:
+                    workflow_run.credential_id = credential_id
+                    await self.db.flush()
+                    return True
+            else:
+                logger.warning(
+                    f"Twilio credential {credential_id} is already in use by workflow run {existing_run.id}."
+                )
+                return False
+        return False
+
+    async def mark_credential_available(
+        self, credential_id: str, workflow_run_id: str
+    ) -> bool:
+        from backend.app.models.workflow_run import WorkflowRun
+
+        credential = await self.get_credential_by_id(credential_id)
+        if credential and credential.credential_type == "twilio":
+            # Find and update the workflow run that holds this credential
+            result = await self.db.execute(
+                select(WorkflowRun)
+                .where(WorkflowRun.credential_id == credential_id)
+                .with_for_update()
+            )
+            workflow_run = result.scalars().first()
+
+            if workflow_run and workflow_run.id == workflow_run_id:
+                workflow_run.credential_id = None
+                await self.db.flush()
+                return True
+            else:
+                logger.warning(
+                    f"Twilio credential {credential_id} is not in use by workflow run {workflow_run_id} or is in use by another run."
+                )
+                return False
+        return False
 
     async def save_google_tokens(
         self, user_id: str, tokens: Dict[str, Any]

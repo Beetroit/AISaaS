@@ -5,10 +5,12 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Credential } from "../../types/credential";
+import { TwilioCredentials } from "../../types/agent";
+import { useUser } from "@/hooks/useUser";
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-// import { Label } from "@/components/ui/label";
 import {
   Form,
   FormControl,
@@ -22,8 +24,6 @@ import {
   saveTwilioCredentials,
   getTwilioCredentials,
   deleteTwilioCredentials,
-  TwilioCredentials,
-  TwilioCredentialResponse,
 } from "@/lib/api/credentials";
 import { ApiError } from "@/lib/api/core";
 
@@ -36,6 +36,8 @@ const formSchema = z.object({
 export function TwilioConfigForm() {
   const queryClient = useQueryClient();
   const { showFeedback } = useFeedback();
+  const { user } = useUser();
+  const userId = user?.id;
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -46,25 +48,35 @@ export function TwilioConfigForm() {
     },
   });
 
-  const { data: existingCredentials, isLoading: isLoadingCredentials } = useQuery<TwilioCredentialResponse | null>({ // Updated type
-    queryKey: ["twilioCredentials"],
-    queryFn: getTwilioCredentials,
+  const { data: existingCredentials, isLoading: isLoadingCredentials } = useQuery<Credential | null>({
+    queryKey: ["twilioCredentials", userId],
+    queryFn: () => (userId ? getTwilioCredentials(userId) : Promise.resolve(null)),
+    enabled: !!userId,
   });
 
   useEffect(() => {
     if (existingCredentials && existingCredentials.credentials_data) {
       const twilioData = existingCredentials.credentials_data as TwilioCredentials;
       form.reset({
-        account_sid: twilioData.account_sid,
+        account_sid: twilioData.sid,
         auth_token: twilioData.auth_token,
-        whatsapp_number: twilioData.whatsapp_number,
+        whatsapp_number: twilioData.phone_number,
       });
     }
   }, [existingCredentials, form]);
 
   const saveMutation = useMutation({
-    mutationFn: (data: z.infer<typeof formSchema>) =>
-      saveTwilioCredentials(data.account_sid, data.auth_token, data.whatsapp_number),
+    mutationFn: (data: z.infer<typeof formSchema>) => {
+      if (!userId) {
+        throw new Error("User not authenticated.");
+      }
+      const twilioCreds: TwilioCredentials = {
+        sid: data.account_sid,
+        auth_token: data.auth_token,
+        phone_number: data.whatsapp_number,
+      };
+      return saveTwilioCredentials(userId, twilioCreds);
+    },
     onSuccess: () => {
       showFeedback("success", "Twilio credentials saved successfully!");
       queryClient.invalidateQueries({ queryKey: ["twilioCredentials"] });
@@ -81,7 +93,12 @@ export function TwilioConfigForm() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: deleteTwilioCredentials,
+    mutationFn: () => {
+      if (!userId) {
+        throw new Error("User not authenticated.");
+      }
+      return deleteTwilioCredentials(userId);
+    },
     onSuccess: () => {
       showFeedback("success", "Twilio credentials deleted successfully!");
       queryClient.invalidateQueries({ queryKey: ["twilioCredentials"] });

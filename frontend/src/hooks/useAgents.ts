@@ -6,14 +6,18 @@ import {
   getAgent,
   getAgentCredits,
   getAgents,
-  getLeadWebhookUrl,
-  saveTwilioCredentials,
   updateAgent,
-  getLeadMapping,
-  saveLeadMapping,
 } from "../lib/api/agents";
+import {
+  getLeadMapping,
+  getLeadWebhookUrl,
+  saveLeadMapping,
+  saveTwilioCredentials,
+} from "../lib/api/credentials";
 import { AgentCreate, AgentRead, AgentUpdate, TwilioCredentials } from "../types/agent";
+import { AppCredential } from "../types/credential";
 import { LeadMappingConfig } from "../types/lead";
+import { useUser } from "./useUser";
 
 // --- Queries ---
 
@@ -41,18 +45,22 @@ export function useAgentCredits(agentId: string) {
 }
 
 export function useLeadWebhookUrl(agentId: string) {
-  return useQuery<string, Error>({
-    queryKey: ["leadWebhookUrl", agentId],
-    queryFn: () => getLeadWebhookUrl(agentId),
-    enabled: !!agentId,
+  const { user } = useUser();
+  const userId = user?.id;
+  return useQuery<AppCredential | null, Error>({
+    queryKey: ["leadWebhookUrl", userId, agentId],
+    queryFn: () => (userId && agentId ? getLeadWebhookUrl(userId) : Promise.resolve(null)),
+    enabled: !!userId && !!agentId,
   });
 }
 
 export function useGetLeadMapping(agentId: string) {
-  return useQuery<LeadMappingConfig, Error>({
-    queryKey: ["leadMapping", agentId],
-    queryFn: () => getLeadMapping(agentId),
-    enabled: !!agentId,
+  const { user } = useUser();
+  const userId = user?.id;
+  return useQuery<AppCredential | null, Error>({
+    queryKey: ["leadMapping", userId, agentId],
+    queryFn: () => (userId && agentId ? getLeadMapping(userId) : Promise.resolve(null)),
+    enabled: !!userId && !!agentId,
   });
 }
 
@@ -102,22 +110,24 @@ export function useAddAgentCredits() {
 
 export function useSaveTwilioCredentials() {
   const queryClient = useQueryClient();
-  return useMutation<AgentRead, Error, { agentId: string; credentials: TwilioCredentials }>({
-    mutationFn: ({ agentId, credentials }) => saveTwilioCredentials(agentId, credentials),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["agent", data.id] })
+  const { user } = useUser();
+  const userId = user?.id;
+  return useMutation<AppCredential, Error, { credentials: TwilioCredentials }>({
+    mutationFn: ({ credentials }) => (userId ? saveTwilioCredentials(userId, credentials) : Promise.reject(new Error("User not authenticated."))),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["twilioCredentials"] })
     },
   });
 }
 
 export function useSaveLeadMapping() {
   const queryClient = useQueryClient();
-  return useMutation<LeadMappingConfig, Error, { agentId: string; config: LeadMappingConfig }>({
-    mutationFn: ({ agentId, config }) => saveLeadMapping(agentId, config),
-    onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["leadMapping", variables.agentId] });
-
-      queryClient.invalidateQueries({ queryKey: ["agent", variables.agentId] });
+  const { user } = useUser();
+  const userId = user?.id;
+  return useMutation<AppCredential, Error, { config: LeadMappingConfig }>({
+    mutationFn: ({ config }) => (userId ? saveLeadMapping(userId, config) : Promise.reject(new Error("User not authenticated."))),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["leadMapping"] });
     },
   });
 }
