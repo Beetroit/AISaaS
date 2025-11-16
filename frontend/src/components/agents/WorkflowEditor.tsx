@@ -16,6 +16,7 @@ import "reactflow/dist/style.css";
 import { AgentWorkflowSchema } from "@/types/agent";
 import { NodeType, WorkflowEdge, WorkflowNode } from "@/types/workflow";
 import { CustomNode } from "./workflow/CustomNode";
+import { NodeConfigurationModal } from "./workflow/NodeConfigurationModal"; // Placeholder import
 import { NodePalette } from "./workflow/NodePalette";
 
 interface WorkflowEditorProps {
@@ -27,10 +28,12 @@ let id = 0;
 const getId = () => `dndnode_${id++}`;
 
 export const WorkflowEditor = ({ initialSchema, onSchemaChange }: WorkflowEditorProps) => {
-  const nodeTypes = useMemo(() => ({ custom: CustomNode }), []);
-
   const [nodes, setNodes] = useState<WorkflowNode[]>(initialSchema?.nodes || []);
   const [edges, setEdges] = useState<WorkflowEdge[]>(initialSchema?.edges || []);
+
+  const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
+  const [editingNodeData, setEditingNodeData] = useState<any | null>(null);
+  const [editingNodeTypeSchema, setEditingNodeTypeSchema] = useState<NodeType | null>(null);
 
   const onNodesChange: OnNodesChange = useCallback(
     (changes) => setNodes((nds) => applyNodeChanges(changes, nds) as WorkflowNode[]),
@@ -81,6 +84,36 @@ export const WorkflowEditor = ({ initialSchema, onSchemaChange }: WorkflowEditor
     []
   );
 
+  const handleNodeDataSave = useCallback((nodeId: string, newData: any) => {
+    setNodes((nds) =>
+      nds.map((node) =>
+        node.id === nodeId
+          ? { ...node, data: { ...node.data, ...newData } }
+          : node
+      )
+    );
+    setEditingNodeId(null); // Close modal after saving
+    setEditingNodeData(null);
+    setEditingNodeTypeSchema(null);
+  }, []);
+
+  const handleNodeClick = useCallback((id: string, data: NodeType) => {
+    setEditingNodeId(id);
+    setEditingNodeData(data); // Use data directly from the prop
+    setEditingNodeTypeSchema(data);
+  }, []); // Removed 'nodes' from dependencies
+
+  const handleNodeDelete = useCallback((nodeId: string) => {
+    setNodes((nds) => nds.filter((node) => node.id !== nodeId));
+    setEdges((eds) =>
+      eds.filter((edge) => edge.source !== nodeId && edge.target !== nodeId)
+    );
+  }, []);
+
+  const memoizedNodeTypes = useMemo(() => ({
+    custom: (props: any) => <CustomNode {...props} onClick={handleNodeClick} onDelete={handleNodeDelete} />,
+  }), [handleNodeClick, handleNodeDelete]);
+
   // Notify parent of schema changes
   React.useEffect(() => {
     onSchemaChange({ nodes, edges });
@@ -96,13 +129,22 @@ export const WorkflowEditor = ({ initialSchema, onSchemaChange }: WorkflowEditor
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
-          nodeTypes={nodeTypes}
+          nodeTypes={memoizedNodeTypes}
           fitView
         >
           <Background />
           <Controls />
         </ReactFlow>
       </div>
+      {editingNodeId && editingNodeTypeSchema && (
+        <NodeConfigurationModal
+          nodeId={editingNodeId}
+          nodeData={editingNodeData}
+          nodeTypeSchema={editingNodeTypeSchema}
+          onSave={handleNodeDataSave}
+          onClose={() => setEditingNodeId(null)}
+        />
+      )}
     </div>
   );
 };
