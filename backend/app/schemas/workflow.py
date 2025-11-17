@@ -39,10 +39,10 @@ class WorkflowSchema(BaseModel):
     def validate_nodes(cls, nodes):
         if not nodes:
             raise ValueError("Workflow must contain at least one node.")
-        start_nodes = [node for node in nodes if node.type == "start"]
+        start_nodes = [node for node in nodes if node.data.get("type") == "start"]
         if len(start_nodes) != 1:
             raise ValueError("Workflow must contain exactly one 'start' node.")
-        end_nodes = [node for node in nodes if node.type == "end"]
+        end_nodes = [node for node in nodes if node.data.get("type") == "end"]
         if not end_nodes:
             raise ValueError("Workflow must contain at least one 'end' node.")
         return nodes
@@ -50,7 +50,7 @@ class WorkflowSchema(BaseModel):
     @field_validator("edges")
     @classmethod
     def validate_edges(cls, edges, values):
-        nodes = values.get("nodes", [])
+        nodes = values.data.get("nodes", [])
         node_ids = {node.id for node in nodes}
 
         for edge in edges:

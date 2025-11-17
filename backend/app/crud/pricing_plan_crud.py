@@ -36,6 +36,6 @@ class PricingPlanCRUD:
         """Create a new pricing plan."""
         db_plan = PricingPlan(**plan_data)
         db.add(db_plan)
-        await db.commit()
-        await db.refresh(db_plan)
+        await db.flush()
+
         return db_plan

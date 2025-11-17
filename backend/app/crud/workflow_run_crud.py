@@ -26,7 +26,7 @@ class WorkflowRunCRUD:
         )
         self.session.add(db_workflow_run)
 
-        await self.session.refresh(db_workflow_run)
+        await self.session.flush()
         return db_workflow_run
 
     async def get_workflow_run(self, workflow_run_id: str) -> Optional[WorkflowRun]:

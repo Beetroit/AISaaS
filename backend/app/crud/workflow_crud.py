@@ -24,12 +24,14 @@ class WorkflowCRUD:
         )
         self.session.add(db_workflow)
 
-        await self.session.refresh(db_workflow)
+        await self.session.flush()
         return db_workflow
 
-    async def get_workflow(self, workflow_id: str) -> Optional[Workflow]:
+    async def get_workflow(self, workflow_id: str, user_id: str) -> Optional[Workflow]:
         result = await self.session.execute(
-            select(Workflow).where(Workflow.id == workflow_id)
+            select(Workflow).where(
+                Workflow.id == workflow_id, Workflow.user_id == user_id
+            )
         )
         return result.scalars().first()
 

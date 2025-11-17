@@ -1,8 +1,54 @@
-from fastapi import APIRouter
+from typing import List
 
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from backend.app.dependencies import CurrentUser, WorkflowCRUDDep, get_db
+from backend.app.schemas.workflow import WorkflowCreate, WorkflowRead
 from backend.app.services.workflow_actions.factory import ActionFactory
 
 router = APIRouter(prefix="/workflows", tags=["workflows"])
+
+
+@router.post("/", response_model=WorkflowRead, status_code=status.HTTP_201_CREATED)
+async def create_workflow_endpoint(
+    workflow_data: WorkflowCreate,
+    current_user: CurrentUser,
+    workflow_crud: WorkflowCRUDDep,
+    db: AsyncSession = Depends(get_db),
+):
+    """Create a new workflow."""
+    created_workflow = await workflow_crud.create_workflow(
+        workflow_data=workflow_data, user_id=current_user.id
+    )
+    return created_workflow
+
+
+@router.get("/", response_model=List[WorkflowRead])
+async def get_workflows_endpoint(
+    current_user: CurrentUser,
+    workflow_crud: WorkflowCRUDDep,
+):
+    """Retrieve all workflows for the current user."""
+    workflows = await workflow_crud.get_workflows_by_user(user_id=current_user.id)
+    return workflows
+
+
+@router.get("/{workflow_id}", response_model=WorkflowRead)
+async def get_workflow_endpoint(
+    workflow_id: str,
+    current_user: CurrentUser,
+    workflow_crud: WorkflowCRUDDep,
+):
+    """Retrieve a single workflow by its ID."""
+    workflow = await workflow_crud.get_workflow(
+        workflow_id=workflow_id, user_id=current_user.id
+    )
+    if not workflow:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Workflow not found"
+        )
+    return workflow
 
 
 @router.get("/node-types")

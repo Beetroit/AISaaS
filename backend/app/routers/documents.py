@@ -149,7 +149,7 @@ async def upload_document(
         db_doc = await knowledge_base_document_crud.create_knowledge_base_document(
             doc_create
         )
-        await db.refresh(db_doc)
+        await db.flush()
 
         background_tasks.add_task(
             _process_document_background,
@@ -209,7 +209,7 @@ async def process_selected_documents(
         await knowledge_base_document_crud.update_document_status(
             doc_id, current_user.id, DocumentStatus.PROCESSING
         )
-        await db.refresh(db_doc)
+        await db.flush()
 
         background_tasks.add_task(
             _process_document_background,
