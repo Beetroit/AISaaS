@@ -1,15 +1,18 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { FormEvent, useRef, useState } from "react";
+import { FormEvent, useRef, useState, useEffect } from "react";
 import { useLogin, useRegister } from "../hooks/useAuth";
+import { useCreateCheckoutSession } from "../hooks/useStripe"; // Import useCreateCheckoutSession
+import { getPendingPurchase, clearPendingPurchase } from "../lib/utils/storage"; // Import storage utilities
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onLoginSuccess?: () => void; // New optional prop for post-login actions
 }
 
-export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
+export default function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModalProps) {
   const [isLogin, setIsLogin] = useState(true)
   const loginEmailRef = useRef<HTMLInputElement>(null);
   const loginPasswordRef = useRef<HTMLInputElement>(null);
@@ -19,6 +22,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const router = useRouter()
   const loginMutation = useLogin();
   const registerMutation = useRegister();
+  const createCheckoutSessionMutation = useCreateCheckoutSession(); // Initialize useCreateCheckoutSession
 
   if (!isOpen) return null;
 
@@ -32,8 +36,18 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
         { email, password },
         {
           onSuccess: () => {
-            onClose()
-            router.push("/dashboard")
+            onClose();
+            const pendingPurchase = getPendingPurchase();
+            if (pendingPurchase) {
+              clearPendingPurchase();
+              // Assuming createCheckoutSessionMutation handles redirection to Stripe
+              createCheckoutSessionMutation.mutate(pendingPurchase.priceId);
+            } else {
+              router.push("/dashboard");
+            }
+            if (onLoginSuccess) {
+              onLoginSuccess();
+            }
           },
           onError: (error) => {
             console.error("Login failed:", error.message);
@@ -55,8 +69,11 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
         {
           onSuccess: () => {
             console.log("Registration successful!");
-            setIsLogin(true)
-            // TODO: Display success message to user
+            setIsLogin(true);
+            // After successful registration, if there's a pending purchase,
+            // we should ideally log them in and then process the purchase.
+            // For now, we'll just switch to login. The pending purchase logic
+            // will be handled after successful login.
           },
           onError: (error) => {
             console.error("Registration failed:", error.message);

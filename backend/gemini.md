@@ -52,3 +52,11 @@ This directory contains the FastAPI application, which serves as the core backen
 
 - The `create_lead` method in `backend/app/crud/lead_crud.py` expects `lead: LeadCreate`, `user_id: str`, `agent_id: str`, and `chat_session_id: str` as separate arguments.
 - The `uvx ty check` tool may report `unknown-argument` errors for `user_id`, `agent_id`, and `chat_session_id` when calling `lead_crud.create_lead` in `backend/app/services/agent_workflow_service.py`, even when the arguments are correctly passed according to the `LeadCRUD` definition. This appears to be a false positive or a limitation of the pre-release `uvx ty check` tool.
+- Frontend billing page (`frontend/src/app/dashboard/billing/page.tsx`) now implements per-button loading state for "Buy Now" buttons using `processingPriceId`.
+- Frontend authentication flow for "Buy Now" buttons:
+    - If an unauthenticated user clicks "Buy Now", the `priceId` and current URL (`/dashboard/billing`) are stored in `localStorage` using `savePendingPurchase`.
+    - The `AuthModal` is then opened.
+    - After successful login via `AuthModal`, the stored `priceId` and `returnUrl` are retrieved from `localStorage`, cleared, and the `createCheckoutSessionMutation` is triggered with the stored `priceId`.
+    - The `AuthModal` (`frontend/src/components/AuthModal.tsx`) has been updated to handle this post-login redirection logic.
+- `frontend/src/lib/utils/storage.ts` was created to manage pending purchase data in `localStorage`.
+- `npx tsc --noEmit --skipLibCheck` now passes without errors when run from the `frontend` directory, confirming type-safety of recent frontend changes.
