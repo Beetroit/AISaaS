@@ -160,6 +160,7 @@ def get_agent_workflow_service(
     messaging_service: MessagingService = Depends(get_messaging_service),
     workflow_crud: WorkflowCRUD = Depends(get_workflow_crud),
     workflow_run_crud: WorkflowRunCRUD = Depends(get_workflow_run_crud),
+    retrieval_service: RetrievalService = Depends(get_retrieval_service),
 ) -> AgentWorkflowService:
     return AgentWorkflowService(
         ai_service=ai_service,
@@ -171,6 +172,7 @@ def get_agent_workflow_service(
         messaging_service=messaging_service,
         workflow_crud=workflow_crud,
         workflow_run_crud=workflow_run_crud,
+        retrieval_service=retrieval_service,
     )
 
 

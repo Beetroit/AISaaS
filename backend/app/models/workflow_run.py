@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from backend.app.models.chat_session import ChatSession
     from backend.app.models.credential import Credential
     from backend.app.models.lead import Lead
+    from backend.app.models.user import User
     from backend.app.models.workflow import Workflow
 
 
@@ -37,6 +38,7 @@ class WorkflowRun(Base):
     credential_id: Mapped[str | None] = mapped_column(
         String(50), ForeignKey("credentials.id"), nullable=True
     )  # For Twilio credentials
+    user_id: Mapped[str] = mapped_column(String(50), ForeignKey("users.id"))
 
     status: Mapped[str] = mapped_column(
         String(50), default="in_progress"
@@ -66,9 +68,10 @@ class WorkflowRun(Base):
     )
     lead: Mapped["Lead"] = relationship("Lead", back_populates="workflow_run")
     credential: Mapped["Credential"] = relationship("Credential")
+    user: Mapped["User"] = relationship("User", back_populates="workflow_runs")
 
     def __repr__(self) -> str:
-        return f"<WorkflowRun(id='{self.id}', agent_id='{self.agent_id}', workflow_id='{self.workflow_id}', status='{self.status}')>"
+        return f"<WorkflowRun(id='{self.id}', user_id='{self.user_id}', agent_id='{self.agent_id}', workflow_id='{self.workflow_id}', status='{self.status}')>"
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -78,6 +81,7 @@ class WorkflowRun(Base):
             "chat_session_id": self.chat_session_id,
             "lead_id": self.lead_id,
             "credential_id": self.credential_id,
+            "user_id": self.user_id,
             "status": self.status,
             "initial_data": self.initial_data,
             "created_at": self.created_at.isoformat() if self.created_at else None,

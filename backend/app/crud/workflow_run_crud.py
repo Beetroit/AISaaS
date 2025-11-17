@@ -13,9 +13,10 @@ class WorkflowRunCRUD:
         self.session = session
 
     async def create_workflow_run(
-        self, workflow_run_data: WorkflowRunCreate
+        self, workflow_run_data: WorkflowRunCreate, user_id: str
     ) -> WorkflowRun:
         db_workflow_run = WorkflowRun(
+            user_id=user_id,
             agent_id=workflow_run_data.agent_id,
             workflow_id=workflow_run_data.workflow_id,
             chat_session_id=workflow_run_data.chat_session_id,
@@ -29,9 +30,13 @@ class WorkflowRunCRUD:
         await self.session.flush()
         return db_workflow_run
 
-    async def get_workflow_run(self, workflow_run_id: str) -> Optional[WorkflowRun]:
+    async def get_workflow_run(
+        self, workflow_run_id: str, user_id: str
+    ) -> Optional[WorkflowRun]:
         result = await self.session.execute(
-            select(WorkflowRun).where(WorkflowRun.id == workflow_run_id)
+            select(WorkflowRun)
+            .where(WorkflowRun.id == workflow_run_id)
+            .where(WorkflowRun.user_id == user_id)
         )
         return result.scalars().first()
 

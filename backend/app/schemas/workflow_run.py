@@ -9,6 +9,7 @@ class WorkflowRunBase(BaseModel):
     chat_session_id: Optional[str] = None
     lead_id: Optional[str] = None
     credential_id: Optional[str] = None
+    user_id: str
     status: str = Field("in_progress", max_length=50)
     initial_data: Dict[str, Any] = Field(default_factory=dict)
 

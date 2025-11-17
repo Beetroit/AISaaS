@@ -47,3 +47,8 @@ This directory contains the FastAPI application, which serves as the core backen
 *   **Environment Variables:** Configuration is managed through `.env` files.
 *   **Logging:** Structured logging is implemented using `rich`.
 *   **API Documentation:** Integrates with `scalar_fastapi` for interactive API documentation.
+
+## Gemini Added Memories (Project-Specific)
+
+- The `create_lead` method in `backend/app/crud/lead_crud.py` expects `lead: LeadCreate`, `user_id: str`, `agent_id: str`, and `chat_session_id: str` as separate arguments.
+- The `uvx ty check` tool may report `unknown-argument` errors for `user_id`, `agent_id`, and `chat_session_id` when calling `lead_crud.create_lead` in `backend/app/services/agent_workflow_service.py`, even when the arguments are correctly passed according to the `LeadCRUD` definition. This appears to be a false positive or a limitation of the pre-release `uvx ty check` tool.

@@ -1,6 +1,6 @@
-from datetime import datetime, timezone
-from typing import Any, Optional, Dict
 import json
+from datetime import datetime, timezone
+from typing import Any, Dict, Optional
 
 from backend.app.config import logger
 from backend.app.crud.agent_crud import AgentCRUD
@@ -12,12 +12,13 @@ from backend.app.crud.workflow_run_crud import WorkflowRunCRUD
 from backend.app.models.agent import Agent
 from backend.app.models.chat_session import ChatSession
 from backend.app.models.workflow_run import WorkflowRun
+from backend.app.schemas.lead import LeadCreate, LeadUpdate
 from backend.app.schemas.message import MessageCreate
 from backend.app.schemas.workflow import LeadExtractionConfig
-from backend.app.schemas.lead import LeadCreate, LeadUpdate
 from backend.app.services.ai_service import AIService
 from backend.app.services.credential_service import CredentialService
 from backend.app.services.messaging_service import MessagingService
+from backend.app.services.retrieval_service import RetrievalService
 from backend.app.services.workflow_actions.factory import ActionFactory
 
 
@@ -33,6 +34,7 @@ class AgentWorkflowService:
         ai_service: AIService,
         credential_service: CredentialService,
         messaging_service: MessagingService,
+        retrieval_service: RetrievalService,
     ):
         self.agent_crud = agent_crud
         self.lead_crud = lead_crud
@@ -43,6 +45,7 @@ class AgentWorkflowService:
         self.ai_service = ai_service
         self.credential_service = credential_service
         self.messaging_service = messaging_service
+        self.retrieval_service = retrieval_service
         self.action_factory = ActionFactory()
 
     async def execute_workflow(self, workflow_run_id: str, user_message: str) -> str:
@@ -54,7 +57,9 @@ class AgentWorkflowService:
         agent = await self.lead_crud.session.get(
             Agent, workflow_run.agent_id
         )  # Assuming lead_crud.session is the main session
-        workflow = await self.workflow_crud.get_workflow(workflow_run.workflow_id)
+        workflow = await self.workflow_crud.get_workflow(
+            workflow_run.workflow_id, user_id=agent.user_id
+        )
         chat_session = (
             await self.chat_session_crud.get_chat_session(workflow_run.chat_session_id)
             if workflow_run.chat_session_id
@@ -71,7 +76,6 @@ class AgentWorkflowService:
         nodes = {node["id"]: node for node in workflow.workflow_schema.get("nodes", [])}
         edges = workflow.workflow_schema.get("edges", [])
         knowledge_base_document_ids = workflow.knowledge_base_document_ids
-
         current_node_id = chat_session.current_workflow_step or self._find_start_node(
             nodes
         )
@@ -161,12 +165,14 @@ class AgentWorkflowService:
                             )
                         else:
                             lead_create_data = LeadCreate(
+                                contact_info=collected_data,
+                            )
+                            await self.lead_crud.create_lead(
+                                lead=lead_create_data,
                                 user_id=chat_session.user_id,
                                 agent_id=chat_session.agent_id,
                                 chat_session_id=chat_session.id,
-                                contact_info=collected_data,
                             )
-                            await self.lead_crud.create_lead(lead_create_data)
                         pass  # Continue to find next node
 
                 # Handle product Q&A node
@@ -251,7 +257,9 @@ class AgentWorkflowService:
             return "Error: An unexpected error occurred during workflow execution."
 
     def _check_node_completion(
-        self, workflow_context: dict[str, Any], completion_requirements: dict[str, Any]
+        self,
+        workflow_context: dict[str, Any],
+        completion_requirements: dict[str, Any],
     ) -> Optional[str]:
         missing_fields = []
         for field, details in completion_requirements.items():
@@ -272,7 +280,9 @@ class AgentWorkflowService:
         return None
 
     def _find_next_node(
-        self, current_node_id: str, edges: list[dict[str, Any]]
+        self,
+        current_node_id: str,
+        edges: list[dict[str, Any]],
     ) -> Optional[str]:
         for edge in edges:
             if edge.get("source") == current_node_id:
@@ -333,7 +343,9 @@ class AgentWorkflowService:
             return False
 
     async def _answer_product_question(
-        self, user_message: str, knowledge_base_document_ids: Optional[list[str]]
+        self,
+        user_message: str,
+        knowledge_base_document_ids: Optional[list[str]],
     ) -> str:
         if not knowledge_base_document_ids:
             return "I don't have access to product information for this agent."
@@ -458,14 +470,20 @@ class AgentWorkflowService:
             )
 
     async def associate_workflow_with_agent(
-        self, agent_id: str, workflow_id: str, user_id: str
+        self,
+        agent_id: str,
+        workflow_id: str,
+        user_id: str,
     ) -> bool:
         return await self.agent_crud.associate_workflow_with_agent(
             agent_id, workflow_id, user_id
         )
 
     async def remove_workflow_from_agent(
-        self, agent_id: str, workflow_id: str, user_id: str
+        self,
+        agent_id: str,
+        workflow_id: str,
+        user_id: str,
     ) -> bool:
         return await self.agent_crud.remove_workflow_from_agent(
             agent_id, workflow_id, user_id
