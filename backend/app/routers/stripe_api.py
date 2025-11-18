@@ -2,7 +2,7 @@ import stripe
 from fastapi import APIRouter, HTTPException
 
 from backend.app.config import logger, settings
-from backend.app.dependencies import CredentialServiceDep, CurrentUser
+from backend.app.dependencies import CredentialServiceDep, CurrentUser, UserCRUDDep
 from backend.app.schemas.stripe import StripeCustomerCreate, StripeSubscriptionCreate
 
 stripe.api_key = settings.stripe_secret_key
@@ -179,6 +179,7 @@ async def create_checkout_session(
     try:
         checkout_session = stripe.checkout.Session.create(
             customer=stripe_customer_id,
+            client_reference_id=current_user.id,
             line_items=[
                 {
                     "price": price_id,
@@ -192,3 +193,18 @@ async def create_checkout_session(
         return {"url": checkout_session.url}
     except stripe.StripeError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/testing/update-balance")
+async def update_balance(
+    user_id: str,
+    credits: int,
+    user_crud: UserCRUDDep,
+):
+    try:
+        user = await user_crud.update_user_credits(user_id, credits)
+        return {"user_id": user.id, "new_balance": user.message_credits}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

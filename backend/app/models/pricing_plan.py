@@ -19,6 +19,9 @@ class PricingPlan(Base):
         unique=True,
         default=lambda: f"prc_{ULID()}",
     )
+    stripe_price_id: Mapped[str | None] = mapped_column(
+        String(50), nullable=True, unique=True
+    )
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     credits: Mapped[int] = mapped_column(default=0, nullable=False)
@@ -35,6 +38,7 @@ class PricingPlan(Base):
     def to_dict(self) -> Dict[str, Any]:
         return {
             "id": self.id,
+            "stripe_price_id": self.stripe_price_id,
             "name": self.name,
             "description": self.description,
             "credits": self.credits,

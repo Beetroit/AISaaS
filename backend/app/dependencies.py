@@ -32,6 +32,7 @@ from backend.app.services.google_calendar_service import GoogleCalendarService
 from backend.app.services.messaging_service import MessagingService
 from backend.app.services.openai_service import OpenAIService
 from backend.app.services.retrieval_service import RetrievalService
+from backend.app.services.stripe_service import StripeService  # Added StripeService
 from backend.app.services.twilio_service import TwilioService
 from backend.app.services.webhook_service import WebhookService
 
@@ -103,6 +104,13 @@ def get_workflow_run_crud(session: AsyncSession = Depends(get_db)) -> WorkflowRu
 
 def get_pricing_plan_crud(session: AsyncSession = Depends(get_db)) -> PricingPlanCRUD:
     return PricingPlanCRUD()
+
+
+def get_stripe_service(
+    user_crud: UserCRUD = Depends(get_user_crud),
+    pricing_plan_crud: PricingPlanCRUD = Depends(get_pricing_plan_crud),
+) -> StripeService:
+    return StripeService(user_crud=user_crud, pricing_plan_crud=pricing_plan_crud)
 
 
 def get_chroma_client() -> ClientAPI:
@@ -264,3 +272,4 @@ GoogleCalendarServiceDep = Annotated[
 ]
 ChromaClientDep = Annotated[ClientAPI, Depends(get_chroma_client)]
 WebhookServiceDep = Annotated["WebhookService", Depends(get_webhook_service)]
+StripeServiceDep = Annotated[StripeService, Depends(get_stripe_service)]

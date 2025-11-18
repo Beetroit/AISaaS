@@ -34,6 +34,9 @@ class User(Base):
     email: Mapped[str] = mapped_column(
         String(255), unique=True, index=True, nullable=False
     )
+    stripe_customer_id: Mapped[str | None] = mapped_column(
+        String(50), nullable=True, unique=True
+    )
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     message_credits: Mapped[int] = mapped_column(
@@ -68,6 +71,7 @@ class User(Base):
         return {
             "id": self.id,
             "email": self.email,
+            "stripe_customer_id": self.stripe_customer_id,
             "is_active": self.is_active,
             "message_credits": self.message_credits,
             "created_at": self.created_at.isoformat() if self.created_at else None,

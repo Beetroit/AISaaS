@@ -16,6 +16,7 @@ from backend.app.dependencies import (
     CredentialServiceDep,
     LeadCRUDDep,
     MessageCRUDDep,
+    StripeServiceDep,  # Added StripeServiceDep
     WorkflowRunCRUDDep,
     get_db,
 )
@@ -179,6 +180,7 @@ async def twilio_whatsapp_webhook(
         chat_session_id=chat_session.id,
         lead_id=lead.id,
         credential_id=twilio_credential_model.id,
+        user_id=agent.user_id,  # Added user_id
         status=WorkflowRunStatus.IN_PROGRESS,
         initial_data={
             "from_number": from_number,
@@ -306,6 +308,7 @@ async def lead_intake_webhook(
             agent_id=agent.id,
             workflow_id=selected_workflow.id,
             lead_id=new_lead.id,
+            user_id=agent.user_id,  # Added user_id
             status=WorkflowRunStatus.IN_PROGRESS,
             initial_data=webhook_data,  # Store the raw webhook data as initial data
         )
@@ -335,6 +338,8 @@ async def lead_intake_webhook(
 @router.post("/stripe")
 async def stripe_webhook(
     request: Request,
+    stripe_service: StripeServiceDep,  # Added StripeServiceDep
+    db: AsyncSession = Depends(get_db),  # Added db dependency
 ):
     stripe_webhook_secret = settings.stripe_webhook_secret
 
@@ -368,6 +373,10 @@ async def stripe_webhook(
     elif event["type"] == "customer.subscription.deleted":
         # TODO: Handle subscription cancellation
         print(f"Subscription deleted: {event['data']['object']}")
+    elif event["type"] == "checkout.session.completed":
+        session = event["data"]["object"]
+        logger.info(f"Checkout session completed: {session}")
+        await stripe_service.handle_checkout_session_completed(session, db)
     else:
         print(f"Unhandled event type: {event['type']}")
 

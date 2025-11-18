@@ -32,6 +32,16 @@ class PricingPlanCRUD:
         return result.scalar_one_or_none()
 
     @staticmethod
+    async def get_pricing_plan_by_stripe_price_id(
+        db: AsyncSession, stripe_price_id: str
+    ):
+        """Get a specific pricing plan by Stripe Price ID."""
+        result = await db.execute(
+            select(PricingPlan).where(PricingPlan.stripe_price_id == stripe_price_id)
+        )
+        return result.scalar_one_or_none()
+
+    @staticmethod
     async def create_pricing_plan(db: AsyncSession, plan_data: dict):
         """Create a new pricing plan."""
         db_plan = PricingPlan(**plan_data)
