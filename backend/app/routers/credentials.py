@@ -33,7 +33,10 @@ async def create_or_update_twilio_credentials(
 
     # Store or update the credential
     credential = await credential_service.create_or_update_credential(
-        user_id=current_user.id, credential_type="twilio", data=credentials_data
+        user_id=current_user.id,
+        credential_type="twilio",
+        data=credentials_data,
+        phone_number=twilio_data.twilio_phone_number,
     )
 
     # Return safe response (no sensitive data)

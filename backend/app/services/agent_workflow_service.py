@@ -49,16 +49,19 @@ class AgentWorkflowService:
         self.action_factory = ActionFactory()
 
     async def execute_workflow(self, workflow_run_id: str, user_message: str) -> str:
+        # First, retrieve the workflow run by its ID (user_id is optional in the updated method)
         workflow_run = await self.workflow_run_crud.get_workflow_run(workflow_run_id)
         if not workflow_run:
             logger.error("WorkflowRun with ID %s not found.", workflow_run_id)
             return "Error: Workflow run not found."
 
+        user_id = workflow_run.user_id
+
         agent = await self.lead_crud.session.get(
             Agent, workflow_run.agent_id
         )  # Assuming lead_crud.session is the main session
         workflow = await self.workflow_crud.get_workflow(
-            workflow_run.workflow_id, user_id=agent.user_id
+            workflow_run.workflow_id, user_id=user_id
         )
         chat_session = (
             await self.chat_session_crud.get_chat_session(workflow_run.chat_session_id)

@@ -117,7 +117,11 @@ class CredentialService:
         return None
 
     async def create_or_update_credential(
-        self, user_id: str, credential_type: str, data: Dict[str, Any]
+        self,
+        user_id: str,
+        credential_type: str,
+        data: Dict[str, Any],
+        phone_number: Optional[str] = None,
     ) -> Credential:
         credential = await self.get_credential_by_type(user_id, credential_type)
 
@@ -125,20 +129,15 @@ class CredentialService:
 
         if credential:
             credential.credentials_data = encrypted_data
+            credential.phone_number = phone_number
         else:
             credential = Credential(
                 user_id=user_id,
                 credential_type=credential_type,
                 credentials_data=encrypted_data,
+                phone_number=phone_number,
             )
             self.db.add(credential)
-
-        # Populate the top-level phone_number field for Twilio credentials
-        if credential_type == "twilio":
-            credential.phone_number = data.get("twilio_phone_number")
-        else:
-            # Ensure the field is null for other credential types
-            credential.phone_number = None
 
         await self.db.flush()
         return credential

@@ -1,99 +1,176 @@
 "use client";
 
-import { useParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
-import { getWorkflowRun } from "@/lib/api/workflow";
+import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { getCredentials } from "@/lib/api/credentials";
+import { getWorkflowRun, updateWorkflowRun } from "@/lib/api/workflow";
+import { AppCredential } from "@/types/credential";
+import { WorkflowRun, WorkflowRunUpdate } from "@/types/workflow";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { Label } from "@/components/ui/label";
 
-export default function WorkflowRunDetailPage() {
+export default function WorkflowRunEditorPage() {
+  const router = useRouter();
   const params = useParams();
+  const queryClient = useQueryClient();
   const workflowRunId = params.workflowRunId as string;
 
-  const { data: workflowRun, isLoading, error } = useQuery({
+  const [selectedCredentialId, setSelectedCredentialId] = useState<
+    string | undefined
+  >(undefined);
+  const [selectedStatus, setSelectedStatus] = useState<string | undefined>(
+    undefined
+  );
+  const [initialData, setInitialData] = useState<string>("");
+
+  const { data: workflowRun, isLoading: isLoadingWorkflowRun } = useQuery<
+    WorkflowRun
+  >({
     queryKey: ["workflowRun", workflowRunId],
     queryFn: () => getWorkflowRun(workflowRunId),
-    enabled: !!workflowRunId,
   });
 
-  if (isLoading) {
-    return <div>Loading workflow run details...</div>;
-  }
+  const { data: credentials, isLoading: isLoadingCredentials } = useQuery<
+    AppCredential[]
+  >({
+    queryKey: ["credentials"],
+    queryFn: () => getCredentials(),
+  });
 
-  if (error) {
-    return <div>Error loading workflow run: {error.message}</div>;
+  useEffect(() => {
+    if (workflowRun) {
+      setSelectedCredentialId(workflowRun.credential_id);
+      setSelectedStatus(workflowRun.status);
+      setInitialData(JSON.stringify(workflowRun.initial_data, null, 2));
+    }
+  }, [workflowRun]);
+
+  const updateWorkflowRunMutation = useMutation({
+    mutationFn: (updatedRun: WorkflowRunUpdate) =>
+      updateWorkflowRun(workflowRunId, updatedRun),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({
+        queryKey: ["workflowRun", workflowRunId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["workflowRuns"] });
+      toast.success("Workflow Run updated successfully!");
+      router.push(`/dashboard/workflow-runs`);
+    },
+    onError: (err) => {
+      toast.error("Failed to update workflow run: " + err.message);
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    let parsedInitialData = {};
+    if (initialData) {
+      try {
+        parsedInitialData = JSON.parse(initialData);
+      } catch {
+        toast.error("Invalid JSON for initial data.");
+        return;
+      }
+    }
+
+    const updatedRun: WorkflowRunUpdate = {
+      credential_id: selectedCredentialId,
+      status: selectedStatus,
+      initial_data: parsedInitialData,
+    };
+
+    updateWorkflowRunMutation.mutate(updatedRun);
+  };
+
+  if (isLoadingWorkflowRun) {
+    return <div>Loading...</div>;
   }
 
   if (!workflowRun) {
-    return <div>Workflow Run not found.</div>;
+    return <div>Workflow run not found.</div>;
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold">Workflow Run: {workflowRun.id}</h1>
+    <form
+      onSubmit={handleSubmit}
+      className="space-y-6 p-4 border rounded-md bg-white dark:bg-gray-800 shadow"
+    >
+      <h2 className="text-xl font-bold mb-4">Edit Workflow Run</h2>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Run Details</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4">
-          <div className="flex items-center justify-between">
-            <span className="font-medium">Status:</span>
-            <Badge variant="secondary">{workflowRun.status}</Badge>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="font-medium">Agent ID:</span>
-            <span>{workflowRun.agent_id}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="font-medium">Workflow ID:</span>
-            <span>{workflowRun.workflow_id}</span>
-          </div>
-          {workflowRun.chat_session_id && (
-            <div className="flex items-center justify-between">
-              <span className="font-medium">Chat Session ID:</span>
-              <span>{workflowRun.chat_session_id}</span>
-            </div>
-          )}
-          {workflowRun.lead_id && (
-            <div className="flex items-center justify-between">
-              <span className="font-medium">Lead ID:</span>
-              <span>{workflowRun.lead_id}</span>
-            </div>
-          )}
-          {workflowRun.credential_id && (
-            <div className="flex items-center justify-between">
-              <span className="font-medium">Credential ID:</span>
-              <span>{workflowRun.credential_id}</span>
-            </div>
-          )}
-          <div className="flex items-center justify-between">
-            <span className="font-medium">Started At:</span>
-            <span>{new Date(workflowRun.created_at).toLocaleString()}</span>
-          </div>
-          {workflowRun.end_time && (
-            <div className="flex items-center justify-between">
-              <span className="font-medium">Ended At:</span>
-              <span>{new Date(workflowRun.end_time).toLocaleString()}</span>
-            </div>
-          )}
-          {workflowRun.initial_data && Object.keys(workflowRun.initial_data).length > 0 && (
-            <div>
-              <span className="font-medium">Initial Data:</span>
-              <pre className="mt-2 p-2 bg-gray-100 dark:bg-gray-700 rounded-md text-sm overflow-auto">
-                {JSON.stringify(workflowRun.initial_data, null, 2)}
-              </pre>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <div>
+        <Label htmlFor="credential">Select Credential (Optional)</Label>
+        <Select
+          onValueChange={setSelectedCredentialId}
+          value={selectedCredentialId}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select a credential" />
+          </SelectTrigger>
+          <SelectContent>
+            {isLoadingCredentials ? (
+              <SelectItem value="loading" disabled>
+                Loading credentials...
+              </SelectItem>
+            ) : (
+              credentials?.map((credential) => (
+                <SelectItem key={credential.id} value={credential.id}>
+                  {credential.credential_type} -{" "}
+                  {credential.phone_number || credential.id}
+                </SelectItem>
+              ))
+            )}
+          </SelectContent>
+        </Select>
+      </div>
 
-      {/* TODO: Add chat messages and lead details here */}
-    </div>
+      <div>
+        <Label htmlFor="status">Status</Label>
+        <Select onValueChange={setSelectedStatus} value={selectedStatus}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select a status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="in_progress">In Progress</SelectItem>
+            <SelectItem value="completed">Completed</SelectItem>
+            <SelectItem value="failed">Failed</SelectItem>
+            <SelectItem value="pending">Pending</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
+        <Label htmlFor="initialData">Initial Data (JSON)</Label>
+        <Textarea
+          id="initialData"
+          value={initialData}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+            setInitialData(e.target.value)
+          }
+          placeholder='{"key": "value", "another_key": "another_value"}'
+          rows={5}
+        />
+        <p className="text-sm text-gray-500 mt-1">
+          Provide initial data as a JSON object. This will be available in the
+          workflow context.
+        </p>
+      </div>
+
+      <Button type="submit" disabled={updateWorkflowRunMutation.isPending}>
+        {updateWorkflowRunMutation.isPending
+          ? "Updating..."
+          : "Update Workflow Run"}
+      </Button>
+    </form>
   );
 }

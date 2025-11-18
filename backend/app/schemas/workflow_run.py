@@ -9,7 +9,7 @@ class WorkflowRunBase(BaseModel):
     chat_session_id: Optional[str] = None
     lead_id: Optional[str] = None
     credential_id: Optional[str] = None
-    user_id: str
+    user_id: Optional[str] = None
     status: str = Field("in_progress", max_length=50)
     initial_data: Dict[str, Any] = Field(default_factory=dict)
 
@@ -19,7 +19,9 @@ class WorkflowRunCreate(WorkflowRunBase):
 
 
 class WorkflowRunUpdate(BaseModel):
+    credential_id: Optional[str] = None
     status: Optional[str] = Field(None, max_length=50)
+    initial_data: Optional[Dict[str, Any]] = None
     end_time: Optional[datetime] = None
 
 

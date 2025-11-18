@@ -53,7 +53,7 @@ class Settings(BaseSettings):
     stripe_webhook_secret: str
     backend_base_url: str
     redis_host: str = "localhost"
-    redis_port: int = 6379
+    redis_port: int = 6378
     allow_concurrent_twilio_use: bool = False  # New setting for admin override
 
 

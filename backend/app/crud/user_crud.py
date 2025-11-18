@@ -8,6 +8,11 @@ class UserCRUD:
     def __init__(self, session: AsyncSession):
         self.session = session
 
+    async def get_user_by_id(self, db: AsyncSession, user_id: str) -> User | None:
+        """Get a user by their ID."""
+        result = await db.execute(select(User).where(User.id == user_id))
+        return result.scalars().first()
+
     async def get_user_by_email(self, email: str) -> User | None:
         result = await self.session.execute(select(User).where(User.email == email))
         return result.scalars().first()

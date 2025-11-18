@@ -359,6 +359,7 @@ async def stripe_webhook(
         event = stripe.Webhook.construct_event(
             payload=body, sig_header=sig_header, secret=stripe_webhook_secret
         )
+        logger.info(f"Stripe webhook event received: {event}")  # Added logging
     except ValueError as e:
         raise HTTPException(status_code=400, detail=f"Invalid payload: {e}")
     except stripe.SignatureVerificationError as e:

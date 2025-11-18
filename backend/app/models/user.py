@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from sqlalchemy import Boolean, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -34,7 +34,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(
         String(255), unique=True, index=True, nullable=False
     )
-    stripe_customer_id: Mapped[str | None] = mapped_column(
+    stripe_customer_id: Mapped[Optional[str]] = mapped_column(
         String(50), nullable=True, unique=True
     )
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)

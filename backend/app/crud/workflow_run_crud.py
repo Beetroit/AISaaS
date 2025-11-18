@@ -13,10 +13,10 @@ class WorkflowRunCRUD:
         self.session = session
 
     async def create_workflow_run(
-        self, workflow_run_data: WorkflowRunCreate, user_id: str
+        self, workflow_run_data: WorkflowRunCreate
     ) -> WorkflowRun:
         db_workflow_run = WorkflowRun(
-            user_id=user_id,
+            user_id=workflow_run_data.user_id,
             agent_id=workflow_run_data.agent_id,
             workflow_id=workflow_run_data.workflow_id,
             chat_session_id=workflow_run_data.chat_session_id,
@@ -31,13 +31,12 @@ class WorkflowRunCRUD:
         return db_workflow_run
 
     async def get_workflow_run(
-        self, workflow_run_id: str, user_id: str
+        self, workflow_run_id: str, user_id: Optional[str] = None
     ) -> Optional[WorkflowRun]:
-        result = await self.session.execute(
-            select(WorkflowRun)
-            .where(WorkflowRun.id == workflow_run_id)
-            .where(WorkflowRun.user_id == user_id)
-        )
+        stmt = select(WorkflowRun).where(WorkflowRun.id == workflow_run_id)
+        if user_id:
+            stmt = stmt.where(WorkflowRun.user_id == user_id)
+        result = await self.session.execute(stmt)
         return result.scalars().first()
 
     async def get_workflow_runs_by_agent(self, agent_id: str) -> List[WorkflowRun]:
@@ -61,7 +60,10 @@ class WorkflowRunCRUD:
             update(WorkflowRun)
             .where(WorkflowRun.id == workflow_run_id)
             .values(
-                status=workflow_run_data.status, end_time=workflow_run_data.end_time
+                status=workflow_run_data.status,
+                end_time=workflow_run_data.end_time,
+                credential_id=workflow_run_data.credential_id,
+                initial_data=workflow_run_data.initial_data,
             )
             .returning(WorkflowRun)
         )
@@ -84,23 +86,12 @@ class WorkflowRunCRUD:
         skip: int = 0,
         limit: int = 100,
     ) -> List[WorkflowRun]:
-        from backend.app.models.agent import Agent
-
-        # Get user agents
-        user_agents_stmt = select(Agent.id).where(Agent.user_id == user_id)
-        user_agent_ids = (await self.session.execute(user_agents_stmt)).scalars().all()
-
-        base_stmt = select(WorkflowRun).where(WorkflowRun.agent_id.in_(user_agent_ids))
+        base_stmt = select(WorkflowRun).where(WorkflowRun.user_id == user_id)
 
         if agent_id:
-            # Verify agent belongs to user (agent_id should be in user_agent_ids, but double-check)
-            if agent_id not in user_agent_ids:
-                return []
             base_stmt = base_stmt.where(WorkflowRun.agent_id == agent_id)
 
         if workflow_id:
-            # Verify workflow belongs to user by joining or separate query
-            # For simplicity, assume if agent is checked, workflow is linked, but to be safe, we can add filter later
             base_stmt = base_stmt.where(WorkflowRun.workflow_id == workflow_id)
 
         stmt = base_stmt.offset(skip).limit(limit)

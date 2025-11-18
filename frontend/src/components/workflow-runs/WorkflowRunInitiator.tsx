@@ -12,8 +12,10 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { getAgents } from "@/lib/api/agents";
+import { getCredentials } from "@/lib/api/credentials";
 import { createWorkflowRun, getWorkflows } from "@/lib/api/workflow";
 import { AgentRead } from "@/types/agent";
+import { AppCredential } from "@/types/credential";
 import { Workflow, WorkflowRunCreate } from "@/types/workflow";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
@@ -24,8 +26,15 @@ export function WorkflowRunInitiator() {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  const [selectedAgentId, setSelectedAgentId] = useState<string | undefined>(undefined);
-  const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | undefined>(undefined);
+  const [selectedAgentId, setSelectedAgentId] = useState<string | undefined>(
+    undefined
+  );
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState<
+    string | undefined
+  >(undefined);
+  const [selectedCredentialId, setSelectedCredentialId] = useState<
+    string | undefined
+  >(undefined);
   const [initialData, setInitialData] = useState<string>(""); // JSON string for initial data
   const [userMessage, setUserMessage] = useState<string>("");
 
@@ -34,10 +43,18 @@ export function WorkflowRunInitiator() {
     queryFn: () => getAgents(),
   });
 
-
-  const { data: workflows, isLoading: isLoadingWorkflows } = useQuery<Workflow[]>({
+  const { data: workflows, isLoading: isLoadingWorkflows } = useQuery<
+    Workflow[]
+  >({
     queryKey: ["workflows"],
     queryFn: () => getWorkflows(),
+  });
+
+  const { data: credentials, isLoading: isLoadingCredentials } = useQuery<
+    AppCredential[]
+  >({
+    queryKey: ["credentials"],
+    queryFn: () => getCredentials(),
   });
 
   const createWorkflowRunMutation = useMutation({
@@ -73,6 +90,7 @@ export function WorkflowRunInitiator() {
     const newRun: WorkflowRunCreate = {
       agent_id: selectedAgentId,
       workflow_id: selectedWorkflowId,
+      credential_id: selectedCredentialId,
       initial_data: parsedInitialData,
       status: "in_progress", // Default status
       // chat_session_id and lead_id will be set by the backend if applicable
@@ -82,7 +100,10 @@ export function WorkflowRunInitiator() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 p-4 border rounded-md bg-white dark:bg-gray-800 shadow">
+    <form
+      onSubmit={handleSubmit}
+      className="space-y-6 p-4 border rounded-md bg-white dark:bg-gray-800 shadow"
+    >
       <h2 className="text-xl font-bold mb-4">Initiate New Workflow Run</h2>
 
       <div>
@@ -109,7 +130,10 @@ export function WorkflowRunInitiator() {
 
       <div>
         <Label htmlFor="workflow">Select Workflow</Label>
-        <Select onValueChange={setSelectedWorkflowId} value={selectedWorkflowId}>
+        <Select
+          onValueChange={setSelectedWorkflowId}
+          value={selectedWorkflowId}
+        >
           <SelectTrigger>
             <SelectValue placeholder="Select a workflow" />
           </SelectTrigger>
@@ -130,16 +154,44 @@ export function WorkflowRunInitiator() {
       </div>
 
       <div>
+        <Label htmlFor="credential">Select Credential (Optional)</Label>
+        <Select
+          onValueChange={setSelectedCredentialId}
+          value={selectedCredentialId}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select a credential" />
+          </SelectTrigger>
+          <SelectContent>
+            {isLoadingCredentials ? (
+              <SelectItem value="loading" disabled>
+                Loading credentials...
+              </SelectItem>
+            ) : (
+              credentials?.map((credential) => (
+                <SelectItem key={credential.id} value={credential.id}>
+                  {credential.credential_type} - {credential.phone_number || credential.id}
+                </SelectItem>
+              ))
+            )}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
         <Label htmlFor="initialData">Initial Data (JSON)</Label>
         <Textarea
           id="initialData"
           value={initialData}
-          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setInitialData(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+            setInitialData(e.target.value)
+          }
           placeholder='{"key": "value", "another_key": "another_value"}'
           rows={5}
         />
         <p className="text-sm text-gray-500 mt-1">
-          Provide initial data as a JSON object. This will be available in the workflow context.
+          Provide initial data as a JSON object. This will be available in the
+          workflow context.
         </p>
       </div>
 
@@ -152,13 +204,17 @@ export function WorkflowRunInitiator() {
           placeholder="Optional: Initial message to simulate user input"
         />
         <p className="text-sm text-gray-500 mt-1">
-          This message will be processed by the workflow as the first user input.
+          This message will be processed by the workflow as the first user
+          input.
         </p>
       </div>
 
       <Button type="submit" disabled={createWorkflowRunMutation.isPending}>
-        {createWorkflowRunMutation.isPending ? "Initiating..." : "Initiate Workflow Run"}
+        {createWorkflowRunMutation.isPending
+          ? "Initiating..."
+          : "Initiate Workflow Run"}
       </Button>
     </form>
   );
 }
+
