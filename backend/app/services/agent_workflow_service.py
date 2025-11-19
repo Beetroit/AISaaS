@@ -115,8 +115,6 @@ class AgentWorkflowService:
                     if chat_session.lead_collection_state is None:
                         chat_session.lead_collection_state = {
                             "collected_data": {},
-                            "required_fields": lead_config.required_fields,
-                            "optional_fields": lead_config.optional_fields,
                         }
 
                     (
@@ -132,29 +130,37 @@ class AgentWorkflowService:
                     self.chat_session_crud.session.add(chat_session)
                     await self.chat_session_crud.session.flush()
 
-                    missing_required_fields = [
-                        field
-                        for field in lead_config.required_fields
-                        if field not in updated_lead_state["collected_data"]
-                        or not updated_lead_state["collected_data"][field]
-                    ]
+                    # Check if all required fields are collected AND validated
+                    collected_data = updated_lead_state.get("collected_data", {})
+                    missing_or_unvalidated = []
+                    for field in lead_config.fields:
+                        field_data = collected_data.get(field.name, {})
+                        if field.required and (
+                            not field_data.get("value")
+                            or not field_data.get("validated")
+                        ):
+                            missing_or_unvalidated.append(field.name)
 
-                    if missing_required_fields:
-                        response = (
-                            ai_response  # AI provides the prompt for missing info
-                        )
+                    if missing_or_unvalidated:
+                        response = ai_response  # AI provides the prompt for missing info/validation
                         chat_session.current_workflow_step = (
                             current_node_id  # Stay on this node
                         )
                         await self.chat_session_crud.session.flush()
                         break
                     else:
-                        # All required fields collected, proceed to next node
+                        # All required fields collected and validated, proceed to next node
                         logger.info(
-                            "All required lead fields collected for session %s. Persisting lead.",
+                            "All required lead fields collected and validated for session %s. Persisting lead.",
                             chat_session.id,
                         )
-                        collected_data = updated_lead_state["collected_data"]
+                        # Flatten data for storage: { "field": "value" }
+                        final_lead_data = {
+                            k: v["value"]
+                            for k, v in collected_data.items()
+                            if v.get("value")
+                        }
+
                         existing_lead = (
                             await self.lead_crud.get_lead_by_chat_session_id(
                                 chat_session.id
@@ -162,13 +168,13 @@ class AgentWorkflowService:
                         )
 
                         if existing_lead:
-                            lead_update_data = LeadUpdate(contact_info=collected_data)
+                            lead_update_data = LeadUpdate(contact_info=final_lead_data)
                             await self.lead_crud.update_lead(
                                 existing_lead.id, lead_update_data
                             )
                         else:
                             lead_create_data = LeadCreate(
-                                contact_info=collected_data,
+                                contact_info=final_lead_data,
                             )
                             await self.lead_crud.create_lead(
                                 lead=lead_create_data,
@@ -393,64 +399,106 @@ class AgentWorkflowService:
         chat_session_id: str,
     ) -> tuple[Dict[str, Any], str]:
         collected_data = current_lead_state.get("collected_data", {})
-        required_fields = lead_config.required_fields
-        optional_fields = lead_config.optional_fields
 
-        # Identify missing required fields
-        missing_required = [
-            field for field in required_fields if not collected_data.get(field)
-        ]
+        # Initialize data structure if empty
+        # Structure: { "field_name": { "value": "some value", "validated": bool } }
+        if not collected_data:
+            for field in lead_config.fields:
+                collected_data[field.name] = {"value": None, "validated": False}
+
+        # Identify fields that need attention (missing or not validated)
+        fields_to_process = []
+        for field in lead_config.fields:
+            field_data = collected_data.get(
+                field.name, {"value": None, "validated": False}
+            )
+            if not field_data["value"] or not field_data["validated"]:
+                fields_to_process.append(field)
+
+        if not fields_to_process:
+            return (
+                {"collected_data": collected_data},
+                "All information has been collected and validated.",
+            )
 
         # Construct the prompt for the AI
         system_prompt = (
-            "You are an AI assistant designed to extract specific lead information "
-            "from user conversations. Your goal is to identify and extract values "
-            "for the requested fields. If a field is not present in the user's "
-            "message, indicate it as 'null'. If all required fields are collected, "
-            "provide a concise confirmation. If required fields are missing, "
-            "politely ask the user for the missing information. "
-            "Always respond with a JSON object containing the extracted fields "
-            "and a 'follow_up_question' if more information is needed, or 'confirmation' "
-            "if all required fields are collected. "
-            "Example JSON for missing fields: "
-            '{"name": "John Doe", "email": null, "follow_up_question": "What is your email address?"}'
-            "Example JSON for all fields collected: "
-            '{"name": "John Doe", "email": "john@example.com", "confirmation": "Thank you for providing your details!"}'
+            "You are an AI assistant designed to extract and validate lead information "
+            "from user conversations. Your goal is to identify values for specific fields "
+            "and ensure they are valid based on the field description. "
+            "For each field, you must determine if the user has provided a value "
+            "and if that value is valid/confirmed.\n\n"
+            "Output a JSON object with the following structure:\n"
+            "{\n"
+            '  "extracted_fields": {\n'
+            '    "field_name": { "value": "extracted value", "validated": boolean }\n'
+            "  },\n"
+            '  "follow_up_question": "Question to ask the user if information is missing or needs validation",\n'
+            '  "confirmation": "Message to send if all required fields are valid"\n'
+            "}\n\n"
+            "Rules:\n"
+            "1. If a value is new or changed, set 'validated' to false unless the user explicitly confirms it.\n"
+            "2. If you ask the user to confirm a value (e.g., 'Is your email x@y.com?') and they say yes, set 'validated' to true.\n"
+            "3. If a value is missing, set 'value' to null.\n"
+            "4. Prioritize required fields."
         )
 
+        fields_desc = "\n".join(
+            [
+                f"- {f.name}: {f.description} (Required: {f.required})"
+                for f in lead_config.fields
+            ]
+        )
+
+        current_state_desc = json.dumps(collected_data, indent=2)
+
         user_prompt = (
-            f"The user said: '{user_message}'.\n"
-            f"Currently collected data: {json.dumps(collected_data)}.\n"
-            f"Required fields to extract: {', '.join(required_fields)}.\n"
-            f"Optional fields to extract: {', '.join(optional_fields)}.\n"
-            f"Missing required fields: {', '.join(missing_required) if missing_required else 'None'}.\n"
-            "Please extract the information and provide a follow-up question if necessary, "
-            "or a confirmation if all required fields are collected. "
-            "Ensure your response is a valid JSON object."
+            f"The user said: '{user_message}'.\n\n"
+            f"Fields to extract:\n{fields_desc}\n\n"
+            f"Current State:\n{current_state_desc}\n\n"
+            "Update the state based on the user's message. "
+            "If a value is present but not validated, you should probably ask for confirmation or check it against the description. "
+            "Provide a follow-up question to get missing info or validate existing info."
         )
 
         try:
             ai_raw_response = await self.ai_service.generate_response(
                 prompt=user_prompt, system_message=system_prompt
             )
+            # Clean up potential markdown code blocks
+            if "```json" in ai_raw_response:
+                ai_raw_response = (
+                    ai_raw_response.split("```json")[1].split("```")[0].strip()
+                )
+            elif "```" in ai_raw_response:
+                ai_raw_response = (
+                    ai_raw_response.split("```")[1].split("```")[0].strip()
+                )
+
             ai_response_json = json.loads(ai_raw_response)
 
-            # Update collected data with new extractions
-            for field in required_fields + optional_fields:
-                if field in ai_response_json and ai_response_json[field] is not None:
-                    collected_data[field] = ai_response_json[field]
+            extracted_fields = ai_response_json.get("extracted_fields", {})
+
+            # Update collected data
+            for field_name, data in extracted_fields.items():
+                if field_name in collected_data:
+                    # Only update if value is not None or if we are explicitly clearing it
+                    if data.get("value") is not None:
+                        collected_data[field_name]["value"] = data["value"]
+
+                    # Update validation status if provided
+                    if "validated" in data:
+                        collected_data[field_name]["validated"] = data["validated"]
 
             # Determine AI's conversational response
             ai_conversational_response = (
                 ai_response_json.get("follow_up_question")
                 or ai_response_json.get("confirmation")
-                or "Thank you for your response."
+                or "Thank you."
             )
 
             updated_lead_state = {
                 "collected_data": collected_data,
-                "required_fields": required_fields,
-                "optional_fields": optional_fields,
             }
             return updated_lead_state, ai_conversational_response
 

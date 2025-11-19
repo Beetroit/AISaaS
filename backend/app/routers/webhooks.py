@@ -78,7 +78,7 @@ async def twilio_whatsapp_webhook(
         .join(Credential, Agent.user_id == Credential.user_id)
         .where(
             Credential.credential_type == "twilio",
-            Credential.phone_number == to_number,
+            Credential.phone_number == str(to_number).replace("whatsapp:", ""),
         )
     )
     agent = (await db.execute(agent_stmt)).scalar_one_or_none()
@@ -103,12 +103,24 @@ async def twilio_whatsapp_webhook(
     twilio_auth_token = twilio_credential_data["twilio_auth_token"]
     validator = RequestValidator(twilio_auth_token)
     request_url = str(request.url)
+    for i,v in request.headers.items():
+        logger.info(f"Header: {i} = {v}")
+    # Handle reverse proxy/tunnel case where app sees http but Twilio sent https
+    forwarded_proto = request.headers.get("x-forwarded-proto")
+    forwarded_port = request.headers.get("x-forwarded-port")
+    if (
+        forwarded_proto == "https" or forwarded_port == "443"
+    ) and request_url.startswith("http://"):
+        request_url = request_url.replace("http://", "https://", 1)
 
+    logger.info(f"Twilio request URL: {request_url}")
     x_twilio_signature = request.headers.get("x-twilio-signature")
     if not x_twilio_signature or not validator.validate(
         request_url, form_params_dict, x_twilio_signature
     ):
-        raise HTTPException(status_code=403, detail="Invalid Twilio signature.")
+        raise HTTPException(
+            status_code=403, detail=f"Invalid Twilio signature. {x_twilio_signature}"
+        )
 
     incoming_message = form_params_dict.get("Body")
     from_number = form_params_dict.get("From")

@@ -18,8 +18,18 @@ class LeadCRUD:
         agent_id: str,
         chat_session_id: str,
     ) -> Lead:
+        lead_data = lead.model_dump(exclude_unset=True)
+
+        # Extract fields that should go into contact_info
+        contact_info = lead_data.get("contact_info") or {}
+        for field in ["email", "phone_number", "name", "source"]:
+            if field in lead_data:
+                contact_info[field] = lead_data.pop(field)
+
+        lead_data["contact_info"] = contact_info
+
         db_lead = Lead(
-            **lead.model_dump(),
+            **lead_data,
             user_id=user_id,
             agent_id=agent_id,
             chat_session_id=chat_session_id,

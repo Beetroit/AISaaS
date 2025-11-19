@@ -16,19 +16,17 @@ if TYPE_CHECKING:
     from backend.app.models.user import User
     from backend.app.models.workflow_run import WorkflowRun
 
-__custom_lead_table_prefix = "lead_"
-
 
 class Lead(Base):
     __tablename__ = "leads"
-    __table_prefix__ = "lead_"
+    __custom_lead_table_prefix = "lead_"
 
     id: Mapped[str] = mapped_column(
         String(50),
         primary_key=True,
         index=True,
         unique=True,
-        default=lambda: f"{__custom_lead_table_prefix}{ULID()}",
+        default=lambda: f"{Lead.__custom_lead_table_prefix}{ULID()}",
     )
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id"))
     agent_id: Mapped[str] = mapped_column(ForeignKey("agents.id"))

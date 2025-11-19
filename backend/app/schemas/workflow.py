@@ -4,14 +4,20 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field, field_validator
 
 
-class LeadExtractionConfig(BaseModel):
-    required_fields: List[str] = Field(
-        default_factory=list,
-        description="List of lead fields that are required to be extracted.",
+class LeadField(BaseModel):
+    name: str = Field(
+        ..., description="The name of the field to extract (e.g., 'email', 'budget')."
     )
-    optional_fields: List[str] = Field(
+    description: str = Field(
+        ..., description="Description of what to extract for the AI."
+    )
+    required: bool = Field(True, description="Whether this field is mandatory.")
+
+
+class LeadExtractionConfig(BaseModel):
+    fields: List[LeadField] = Field(
         default_factory=list,
-        description="List of lead fields that are optional to be extracted.",
+        description="List of fields to extract from the conversation.",
     )
 
 
