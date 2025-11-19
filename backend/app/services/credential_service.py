@@ -104,6 +104,14 @@ class CredentialService:
         )
         return decrypted_data, credential_model
 
+    async def get_decrypted_credential_data(
+        self, credential: Credential
+    ) -> Optional[Dict[str, Any]]:
+        """Decrypts and returns the data for a given Credential model."""
+        if not credential or not isinstance(credential.credentials_data, bytes):
+            return None
+        return encryption_helper.decrypt_data(credential.credentials_data)
+
     async def update_credential(
         self, user_id: str, credential_type: str, new_data: Dict[str, Any]
     ) -> Optional[Credential]:

@@ -13,7 +13,7 @@ class RetrievalService:
         self,
         ai_service: AIService,
         chroma_client: ClientAPI,
-        embedding_model: str = settings.gpt5_mini_model,
+        embedding_model: str = settings.embedding_model,
     ):
         self.ai_service = ai_service
         self.chroma_client = chroma_client

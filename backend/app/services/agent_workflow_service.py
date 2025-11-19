@@ -98,8 +98,10 @@ class AgentWorkflowService:
                     )
                     raise ValueError("Workflow execution failed: Node not found.")
 
+                node_type = self._get_node_type(current_node)
+
                 # Handle lead extraction node
-                if current_node["type"] == "lead_extraction":
+                if node_type == "lead_extraction":
                     try:
                         lead_config = LeadExtractionConfig(
                             **current_node.get("data", {})
@@ -185,7 +187,7 @@ class AgentWorkflowService:
                         pass  # Continue to find next node
 
                 # Handle product Q&A node
-                elif current_node["type"] == "product_qa":
+                elif node_type == "product_qa":
                     response = await self._answer_product_question(
                         user_message=user_message,
                         knowledge_base_document_ids=knowledge_base_document_ids,
@@ -197,7 +199,7 @@ class AgentWorkflowService:
                     # which is handled by the generic question handling below.
                     pass
 
-                action_class = self.action_factory.get_action(current_node["type"])
+                action_class = self.action_factory.get_action(node_type)
                 action_instance = action_class()
 
                 # Check for node completion requirements before executing the action
@@ -282,9 +284,19 @@ class AgentWorkflowService:
             return f"I need more information to proceed. Please provide the following: {', '.join(missing_fields)}."
         return None
 
+    def _get_node_type(self, node: dict[str, Any]) -> str:
+        """
+        Helper to extract the node type, handling both direct 'type'
+        and 'custom' type with 'data.type' (frontend structure).
+        """
+        node_type = node.get("type")
+        if node_type == "custom":
+            return node.get("data", {}).get("type", "unknown")
+        return node_type or "unknown"
+
     def _find_start_node(self, nodes: dict[str, Any]) -> Optional[str]:
         for node_id, node in nodes.items():
-            if node.get("type") == "start":
+            if self._get_node_type(node) == "start":
                 return node_id
         return None
 

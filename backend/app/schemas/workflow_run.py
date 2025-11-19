@@ -11,7 +11,7 @@ class WorkflowRunBase(BaseModel):
     credential_id: Optional[str] = None
     user_id: Optional[str] = None
     status: str = Field("in_progress", max_length=50)
-    initial_data: Dict[str, Any] = Field(default_factory=dict)
+    initial_data: Optional[Dict[str, Any]] = Field(default_factory=dict)
 
 
 class WorkflowRunCreate(WorkflowRunBase):

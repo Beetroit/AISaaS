@@ -25,6 +25,7 @@ from .routers import (
     stripe_api,
     webhooks,
     workflow,
+    workflow_runs,
 )
 
 
@@ -99,6 +100,7 @@ app.include_router(reports.router, prefix="/reports", tags=["reports"])
 app.include_router(credentials.router)
 app.include_router(pricing.router)
 app.include_router(workflow.router)
+app.include_router(workflow_runs.router)
 
 
 @app.get("/users/me", response_model=schemas_user.UserResponse)

@@ -1,7 +1,7 @@
 import hashlib
 import hmac
 import json
-
+import logging
 import stripe
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
@@ -23,6 +23,7 @@ from backend.app.dependencies import (
 from backend.app.models.agent import Agent
 from backend.app.models.credential import Credential
 from backend.app.models.workflow import Workflow
+from backend.app.models.workflow_run import WorkflowRun
 from backend.app.schemas.chat_session import ChatSessionCreate
 from backend.app.schemas.enums import WorkflowRunStatus
 from backend.app.schemas.lead import LeadCreate
@@ -30,6 +31,7 @@ from backend.app.schemas.message import MessageCreate
 from backend.app.schemas.workflow_run import WorkflowRunCreate
 
 router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
+logger.setLevel(logging.DEBUG)
 
 
 @router.post("/twilio-callback")
@@ -72,38 +74,60 @@ async def twilio_whatsapp_webhook(
             status_code=400, detail="Missing 'To' phone number in webhook data."
         )
 
-    # Find the agent associated with this Twilio phone number
-    agent_stmt = (
-        select(Agent)
-        .join(Credential, Agent.user_id == Credential.user_id)
-        .where(
-            Credential.credential_type == "twilio",
-            Credential.phone_number == str(to_number).replace("whatsapp:", ""),
-        )
+    # Find the credential associated with this Twilio phone number
+    credential_stmt = select(Credential).where(
+        Credential.credential_type == "twilio",
+        Credential.phone_number == str(to_number).replace("whatsapp:", ""),
     )
-    agent = (await db.execute(agent_stmt)).scalar_one_or_none()
-
-    if not agent:
+    credential = (await db.execute(credential_stmt)).scalar_one_or_none()
+    logger.info(f"Credential found: {credential}")
+    if not credential:
         raise HTTPException(
             status_code=404,
-            detail=f"No agent found for Twilio phone number: {to_number}",
+            detail=f"No credential found for Twilio phone number: {to_number}",
         )
 
-    # Get the specific Twilio credential used for this incoming message
-    (
-        twilio_credential_data,
-        twilio_credential_model,
-    ) = await credential_service.get_credential_and_model(agent.user_id, "twilio")
-    if not twilio_credential_data or not twilio_credential_model:
+    # Enforce the new routing architecture: Find an active WorkflowRun for this Credential
+    # The client must have already created a WorkflowRun with this credential.
+    workflow_run_stmt = (
+        select(WorkflowRun)
+        .where(
+            WorkflowRun.credential_id == credential.id,
+            WorkflowRun.status == WorkflowRunStatus.IN_PROGRESS.value,
+        )
+        .order_by(WorkflowRun.updated_at.desc())
+        .limit(1)
+    )
+    logger.info(f"Workflow run query: {workflow_run_stmt}")
+    workflow_run = (await db.execute(workflow_run_stmt)).scalar_one_or_none()
+    logger.info(f"Workflow run found: {workflow_run}")
+
+    if not workflow_run:
+        raise HTTPException(
+            status_code=404,
+            detail="No active WorkflowRun found for this credential. Please start a run first.",
+        )
+
+    # Get the decrypted credential data to extract twilio_auth_token
+    twilio_credential_data = await credential_service.get_decrypted_credential_data(
+        credential
+    )
+    if not twilio_credential_data:
         raise HTTPException(
             status_code=403,
-            detail="Twilio credentials are not configured for this agent.",
+            detail="Twilio credentials data could not be decrypted.",
         )
 
-    twilio_auth_token = twilio_credential_data["twilio_auth_token"]
+    twilio_auth_token = twilio_credential_data.get("twilio_auth_token")
+    if not twilio_auth_token:
+        raise HTTPException(
+            status_code=403,
+            detail="Twilio auth token not found in credential data.",
+        )
+
     validator = RequestValidator(twilio_auth_token)
     request_url = str(request.url)
-    for i,v in request.headers.items():
+    for i, v in request.headers.items():
         logger.info(f"Header: {i} = {v}")
     # Handle reverse proxy/tunnel case where app sees http but Twilio sent https
     forwarded_proto = request.headers.get("x-forwarded-proto")
@@ -128,30 +152,55 @@ async def twilio_whatsapp_webhook(
     if not incoming_message or not from_number:
         raise HTTPException(status_code=400, detail="Missing message body or sender.")
 
-    chat_session = await chat_session_crud.get_chat_session_by_external_id(
-        agent.id, from_number
-    )
-
-    if not chat_session:
+    # Ensure ChatSession exists for this run
+    if not workflow_run.chat_session_id:
+        # Create a new chat session linked to the run's agent and user
         chat_session_create = ChatSessionCreate(
-            user_id=agent.user_id, agent_id=agent.id, external_id=from_number
+            user_id=workflow_run.user_id,
+            agent_id=workflow_run.agent_id,
+            external_id=from_number,
         )
         chat_session = await chat_session_crud.create_chat_session(chat_session_create)
 
-    # Ensure a lead exists for this chat session
-    lead = await lead_crud.get_lead_by_chat_session_id(chat_session.id)
-    if not lead:
-        lead_create = LeadCreate(
-            name="New Lead from WhatsApp",
-            contact_info={"phone": from_number},
-            qualification_status="new",
+        # Link session to run
+        workflow_run.chat_session_id = chat_session.id
+        await db.flush()
+    else:
+        chat_session = await chat_session_crud.get_chat_session(
+            workflow_run.chat_session_id
         )
-        lead = await lead_crud.create_lead(
-            lead=lead_create,
-            user_id=agent.user_id,
-            agent_id=agent.id,
-            chat_session_id=chat_session.id,
-        )
+        if not chat_session:
+            # Fallback if ID exists but session doesn't (shouldn't happen but safe to handle)
+            chat_session_create = ChatSessionCreate(
+                user_id=workflow_run.user_id,
+                agent_id=workflow_run.agent_id,
+                external_id=from_number,
+            )
+            chat_session = await chat_session_crud.create_chat_session(
+                chat_session_create
+            )
+            workflow_run.chat_session_id = chat_session.id
+            await db.flush()
+
+    # Ensure a lead exists for this chat session (if needed by the workflow)
+    # The workflow run might already have a lead_id, or we might need to create one.
+    # Current logic: If run has lead_id, use it. If not, check session. If not, create.
+    if not workflow_run.lead_id:
+        lead = await lead_crud.get_lead_by_chat_session_id(chat_session.id)
+        if not lead:
+            lead_create = LeadCreate(
+                name="New Lead from WhatsApp",
+                contact_info={"phone": from_number},
+                qualification_status="new",
+            )
+            lead = await lead_crud.create_lead(
+                lead=lead_create,
+                user_id=workflow_run.user_id,
+                agent_id=workflow_run.agent_id,
+                chat_session_id=chat_session.id,
+            )
+        workflow_run.lead_id = lead.id
+        await db.flush()
 
     await message_crud.create_message(
         MessageCreate(
@@ -159,60 +208,14 @@ async def twilio_whatsapp_webhook(
         )
     )
 
-    # --- Workflow Selection and WorkflowRun Creation ---
-    # For simplicity, pick the first associated workflow. In a real scenario,
-    # there might be logic to select a specific workflow.
-    agent_workflows = (
-        (
-            await db.execute(
-                select(Workflow).join(Agent.workflows).where(Agent.id == agent.id)
-            )
-        )
-        .scalars()
-        .all()
-    )
-    if not agent_workflows:
-        raise HTTPException(
-            status_code=404, detail="Agent has no workflows associated."
-        )
-
-    selected_workflow = agent_workflows[0]  # Pick the first one
-
-    # Check and mark Twilio credential as in use
-    if not await credential_service.mark_credential_in_use(
-        twilio_credential_model.id, chat_session.id
-    ):  # Using chat_session.id as a temporary run_id
-        raise HTTPException(
-            status_code=409, detail="Twilio credential is currently in use."
-        )
-
-    workflow_run_create = WorkflowRunCreate(
-        agent_id=agent.id,
-        workflow_id=selected_workflow.id,
-        chat_session_id=chat_session.id,
-        lead_id=lead.id,
-        credential_id=twilio_credential_model.id,
-        user_id=agent.user_id,  # Added user_id
-        status=WorkflowRunStatus.IN_PROGRESS,
-        initial_data={
-            "from_number": from_number,
-            "to_number": to_number,
-            "user_message": incoming_message,
-        },
-    )
-    workflow_run = await workflow_run_crud.create_workflow_run(
-        workflow_run_data=workflow_run_create
-    )
-
+    # Execute the workflow associated with the run
     agent_response = await agent_workflow_service.execute_workflow(
         workflow_run_id=workflow_run.id,
         user_message=incoming_message,
     )
 
     # Mark credential as available after workflow execution (or handle in agent_workflow_service)
-    await credential_service.mark_credential_available(
-        twilio_credential_model.id, workflow_run.id
-    )
+    await credential_service.mark_credential_available(credential.id, workflow_run.id)
 
     await message_crud.create_message(
         MessageCreate(

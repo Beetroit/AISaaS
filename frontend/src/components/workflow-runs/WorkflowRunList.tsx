@@ -16,6 +16,41 @@ import { Eye } from "lucide-react";
 import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
+import { Play } from "lucide-react";
+import { startWorkflowRun } from "@/lib/api/workflow";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+
+function StartRunButton({ runId }: { runId: string }) {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: startWorkflowRun,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workflowRuns"] });
+      toast.success("Workflow Run Started", {
+        description: "The workflow run has been successfully started.",
+      });
+    },
+    onError: (error: Error) => {
+      toast.error("Error", {
+        description: `Failed to start workflow run: ${error.message}`,
+      });
+    },
+  });
+
+  return (
+    <Button
+      variant="default"
+      size="sm"
+      onClick={() => mutation.mutate(runId)}
+      disabled={mutation.isPending}
+    >
+      <Play className="mr-2 h-4 w-4" />
+      {mutation.isPending ? "Starting..." : "Start"}
+    </Button>
+  );
+}
 
 export function WorkflowRunList() {
   const { data: workflowRuns, isLoading, error } = useQuery<WorkflowRun[]>({
@@ -61,6 +96,9 @@ export function WorkflowRunList() {
                       <Eye className="h-4 w-4" /> View
                     </Link>
                   </Button>
+                  {run.status !== "in_progress" && run.status !== "completed" && (
+                    <StartRunButton runId={run.id} />
+                  )}
                 </div>
               </TableCell>
             </TableRow>

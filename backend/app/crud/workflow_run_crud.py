@@ -59,12 +59,7 @@ class WorkflowRunCRUD:
         stmt = (
             update(WorkflowRun)
             .where(WorkflowRun.id == workflow_run_id)
-            .values(
-                status=workflow_run_data.status,
-                end_time=workflow_run_data.end_time,
-                credential_id=workflow_run_data.credential_id,
-                initial_data=workflow_run_data.initial_data,
-            )
+            .values(**workflow_run_data.dict(exclude_unset=True))
             .returning(WorkflowRun)
         )
         result = await self.session.execute(stmt)

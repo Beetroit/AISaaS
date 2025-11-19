@@ -57,21 +57,21 @@ export async function disassociateAgentFromWorkflow(
 export async function createWorkflowRun(
   workflowRun: WorkflowRunCreate
 ): Promise<WorkflowRun> {
-  return callApi<WorkflowRun>("/workflows/runs", {
+  return callApi<WorkflowRun>("/workflow-runs/", {
     method: "POST",
     body: workflowRun,
   });
 }
 
 export async function getWorkflowRun(workflowRunId: string): Promise<WorkflowRun> {
-  return get<WorkflowRun>(`/workflows/runs/${workflowRunId}`);
+  return get<WorkflowRun>(`/workflow-runs/${workflowRunId}`);
 }
 
 export async function updateWorkflowRun(
   workflowRunId: string,
   workflowRun: WorkflowRunUpdate
 ): Promise<WorkflowRun> {
-  return callApi<WorkflowRun>(`/workflows/runs/${workflowRunId}`, {
+  return callApi<WorkflowRun>(`/workflow-runs/${workflowRunId}`, {
     method: "PUT",
     body: workflowRun,
   });
@@ -88,6 +88,12 @@ export async function getWorkflowRuns(
   if (workflowId) {
     query += `${query ? "&" : ""}workflow_id=${workflowId}`;
   }
-  return get<WorkflowRun[]>(`/workflows/runs${query ? `?${query}` : ""}`);
+  return get<WorkflowRun[]>(`/workflow-runs/${query ? `?${query}` : ""}`);
+}
+
+export async function startWorkflowRun(workflowRunId: string): Promise<WorkflowRun> {
+  return callApi<WorkflowRun>(`/workflow-runs/start/${workflowRunId}`, {
+    method: "POST",
+  });
 }
 
