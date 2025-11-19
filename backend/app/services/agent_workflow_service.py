@@ -332,15 +332,27 @@ class AgentWorkflowService:
         )
 
         if workflow_run.credential_id:
-            twilio_credentials = await self.credential_service.get_credential_by_id(
+            credential_model = await self.credential_service.get_credential_by_id(
                 workflow_run.credential_id
             )
-            if twilio_credentials:
-                await self.messaging_service.send_message(
-                    to_number=chat_session.external_id,
-                    message_body=final_response,
-                    creds=twilio_credentials,
+            if credential_model:
+                decrypted_creds = (
+                    await self.credential_service.get_decrypted_credential_data(
+                        credential_model
+                    )
                 )
+                if decrypted_creds:
+                    await self.messaging_service.send_message(
+                        to=chat_session.external_id,
+                        body=final_response,
+                        credential_model=credential_model,
+                    )
+                else:
+                    logger.warning(
+                        "Could not decrypt credentials for Credential ID %s for WorkflowRun %s. Cannot send message.",
+                        workflow_run.credential_id,
+                        workflow_run.id,
+                    )
             else:
                 logger.warning(
                     "Credential with ID %s not found for WorkflowRun %s. Cannot send message.",

@@ -1,11 +1,11 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict
+from typing import Any
 
 
 class MessagingService(ABC):
     @abstractmethod
     async def send_message(
-        self, to_number: str, message_body: str, creds: Dict[str, Any]
+        self, to_number: str, message_body: str, credential_model: Any
     ) -> str | None:
         """
         Sends a message to a specified recipient.

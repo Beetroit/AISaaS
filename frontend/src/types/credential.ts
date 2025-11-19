@@ -13,6 +13,7 @@ export interface CredentialUpdate extends Partial<AppCredentialBase> {}
 export interface AppCredential extends AppCredentialBase {
     id: string;
     user_id: string;
+    phone_number?: string | null;
     created_at: string;
     updated_at: string;
 }

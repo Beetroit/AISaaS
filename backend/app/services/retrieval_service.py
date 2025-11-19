@@ -36,14 +36,19 @@ class RetrievalService:
             name=collection_name, embedding_function=self.embedding_function
         )
 
-        where_clause = {"user_id": user_id}
+        conditions = [{"user_id": user_id}]
         if document_ids:
-            where_clause["id"] = {"$in": document_ids}
-        elif agent_id:  # Fallback to agent_id if no specific document_ids are provided
-            where_clause["agent_id"] = agent_id
+            conditions.append({"id": {"$in": document_ids}})
+        elif agent_id:
+            conditions.append({"agent_id": agent_id})
+
+        if len(conditions) > 1:
+            where_clause = {"$and": conditions}
+        else:
+            where_clause = conditions[0]
 
         results = collection.query(
-            query_embeddings=[query_embedding],
+            query_embeddings=query_embedding,
             n_results=n_results,
             where=where_clause,
             include=["documents", "metadatas"],
