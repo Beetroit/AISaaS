@@ -1,4 +1,3 @@
-
 from twilio.rest import Client
 
 from backend.app.config import logger
@@ -21,9 +20,7 @@ class TwilioService(MessagingService):
 
         twilio_sid = decrypted_creds_data.get("twilio_account_sid")
         twilio_auth_token = decrypted_creds_data.get("twilio_auth_token")
-        from_number = (
-            credential_model.phone_number
-        )  # Get phone_number from the model directly
+        from_number = credential_model.phone_number
 
         if not all([twilio_sid, twilio_auth_token, from_number]):
             logger.error("Error: Missing Twilio credentials for sending message.")
@@ -31,10 +28,19 @@ class TwilioService(MessagingService):
 
         try:
             client = Client(twilio_sid, twilio_auth_token)
+            # Ensure 'whatsapp:' prefix is present but not duplicated
+            from_addr = from_number.strip()
+            if not from_addr.startswith("whatsapp:"):
+                from_addr = f"whatsapp:{from_addr}"
+
+            to_addr = to.strip()
+            if not to_addr.startswith("whatsapp:"):
+                to_addr = f"whatsapp:{to_addr}"
+
             message = client.messages.create(
-                from_=f"whatsapp:{from_number}",
+                from_=from_addr,
                 body=body,
-                to=f"whatsapp:{to}",
+                to=to_addr,
             )
             return message.sid
         except Exception as e:

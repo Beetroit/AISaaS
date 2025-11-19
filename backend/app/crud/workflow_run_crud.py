@@ -93,3 +93,15 @@ class WorkflowRunCRUD:
 
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
+
+    async def get_active_workflow_run(
+        self, chat_session_id: str, credential_id: str
+    ) -> Optional[WorkflowRun]:
+        stmt = (
+            select(WorkflowRun)
+            .where(WorkflowRun.chat_session_id == chat_session_id)
+            .where(WorkflowRun.credential_id == credential_id)
+            .where(WorkflowRun.status == "in_progress")
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().first()

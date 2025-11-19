@@ -8,7 +8,7 @@ from googleapiclient.discovery import build
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.config import logger, settings
+from backend.app.config import settings
 from backend.app.models.agent import Agent
 from backend.app.models.credential import Credential
 from backend.app.schemas.credential import CredentialRead
@@ -236,67 +236,7 @@ class CredentialService:
         )
         return result.scalars().first()
 
-    async def mark_credential_in_use(
-        self, credential_id: str, workflow_run_id: str
-    ) -> bool:
-        # Check for admin override
-        if settings.allow_concurrent_twilio_use:
-            return True  # Bypass restriction
-
-        from backend.app.models.workflow_run import WorkflowRun
-
-        credential = await self.get_credential_by_id(credential_id)
-        if credential and credential.credential_type == "twilio":
-            # Check if any workflow run is already using this credential
-            result = await self.db.execute(
-                select(WorkflowRun).where(WorkflowRun.credential_id == credential_id)
-            )
-            existing_run = result.scalars().first()
-
-            if existing_run is None:
-                # Assign the credential to the workflow run
-                await self.db.execute(
-                    select(WorkflowRun)
-                    .where(WorkflowRun.id == workflow_run_id)
-                    .with_for_update()
-                )
-                workflow_run = result.scalars().first()
-                if workflow_run:
-                    workflow_run.credential_id = credential_id
-                    await self.db.flush()
-                    return True
-            else:
-                logger.warning(
-                    f"Twilio credential {credential_id} is already in use by workflow run {existing_run.id}."
-                )
-                return False
-        return False
-
-    async def mark_credential_available(
-        self, credential_id: str, workflow_run_id: str
-    ) -> bool:
-        from backend.app.models.workflow_run import WorkflowRun
-
-        credential = await self.get_credential_by_id(credential_id)
-        if credential and credential.credential_type == "twilio":
-            # Find and update the workflow run that holds this credential
-            result = await self.db.execute(
-                select(WorkflowRun)
-                .where(WorkflowRun.credential_id == credential_id)
-                .with_for_update()
-            )
-            workflow_run = result.scalars().first()
-
-            if workflow_run and workflow_run.id == workflow_run_id:
-                workflow_run.credential_id = None
-                await self.db.flush()
-                return True
-            else:
-                logger.warning(
-                    f"Twilio credential {credential_id} is not in use by workflow run {workflow_run_id} or is in use by another run."
-                )
-                return False
-        return False
+    # mark_credential_in_use and mark_credential_available methods removed to allow concurrent usage
 
     async def save_google_tokens(
         self, user_id: str, tokens: Dict[str, Any]

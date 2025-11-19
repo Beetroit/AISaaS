@@ -71,38 +71,46 @@ class WebhookService:
                 chat_session_id=chat_session.id,
             )
 
-        # Check credential in use (using lead.id as workflow_run_id temporarily)
-        credential_in_use = await self.credential_service.mark_credential_in_use(
-            to_number, str(lead.id)
+        # Check for existing active workflow run
+        existing_run = await self.workflow_run_crud.get_active_workflow_run(
+            chat_session_id=chat_session.id, credential_id=to_number
         )
-        if not credential_in_use:
-            raise ValueError("Credential not available or mismatched.")
 
-        # Get associated workflow
-        # Assuming agent_workflows has relation, but to avoid direct query, assume first or add method
-        # For now, get workflow from agent.workflows if loaded
-        if agent.workflows:
-            workflow = agent.workflows[0]  # Assuming one workflow per agent
+        if existing_run:
+            workflow_run = existing_run
+            logger.info(
+                "Found existing active workflow run %s for chat session %s",
+                workflow_run.id,
+                chat_session.id,
+            )
         else:
-            raise ValueError("No workflow associated with the agent.")
+            # Get associated workflow
+            # Assuming agent_workflows has relation, but to avoid direct query, assume first or add method
+            # For now, get workflow from agent.workflows if loaded
+            if agent.workflows:
+                workflow = agent.workflows[0]  # Assuming one workflow per agent
+            else:
+                raise ValueError("No workflow associated with the agent.")
 
-        # Create workflow run
-        from backend.app.schemas.enums import WorkflowRunStatus
+            # Create workflow run
+            from backend.app.schemas.enums import WorkflowRunStatus
 
-        workflow_run_data = WorkflowRunCreate(
-            agent_id=agent.id,
-            workflow_id=workflow.id,
-            chat_session_id=chat_session.id,
-            lead_id=lead.id,
-            credential_id=to_number,
-            status=WorkflowRunStatus.IN_PROGRESS,
-        )
-        workflow_run = await self.workflow_run_crud.create_workflow_run(
-            workflow_run_data
-        )
-
-        # Update credential in_use with actual workflow_run_id
-        await self.credential_service.mark_credential_in_use(to_number, workflow_run.id)
+            workflow_run_data = WorkflowRunCreate(
+                agent_id=agent.id,
+                workflow_id=workflow.id,
+                chat_session_id=chat_session.id,
+                lead_id=lead.id,
+                credential_id=to_number,
+                status=WorkflowRunStatus.IN_PROGRESS,
+            )
+            workflow_run = await self.workflow_run_crud.create_workflow_run(
+                workflow_run_data
+            )
+            logger.info(
+                "Created new workflow run %s for chat session %s",
+                workflow_run.id,
+                chat_session.id,
+            )
 
         # Create incoming message
         incoming_msg_create = MessageCreate(

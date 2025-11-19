@@ -215,7 +215,7 @@ async def twilio_whatsapp_webhook(
     )
 
     # Mark credential as available after workflow execution (or handle in agent_workflow_service)
-    await credential_service.mark_credential_available(credential.id, workflow_run.id)
+    # await credential_service.mark_credential_available(credential.id, workflow_run.id)
 
     await message_crud.create_message(
         MessageCreate(
