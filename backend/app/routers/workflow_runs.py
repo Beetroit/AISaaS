@@ -113,32 +113,99 @@ async def update_workflow_run_endpoint(
     return updated_run
 
 
-@router.post("/start/{workflow_run_id}", response_model=WorkflowRunRead)
+@router.post(
+    "/{workflow_run_id}/start",
+    response_model=WorkflowRunRead,
+    status_code=status.HTTP_200_OK,
+)
 async def start_workflow_run_endpoint(
     workflow_run_id: str,
     current_user: CurrentUser,
     workflow_run_crud: WorkflowRunCRUDDep,
 ):
-    """Start a workflow run by setting its status to 'in_progress'."""
-    # First, get the existing workflow run to ensure it exists and belongs to the user
-    existing_run = await workflow_run_crud.get_workflow_run(
+    """
+    Set the status of a workflow run to 'in_progress'.
+    This allows a dormant run to become active and handle incoming webhooks.
+    """
+    workflow_run = await workflow_run_crud.get_workflow_run(
         workflow_run_id, user_id=current_user.id
     )
-    if not existing_run:
+    if not workflow_run:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Workflow run not found"
         )
 
-    # Update status to in_progress
-    update_data = WorkflowRunUpdate(status="in_progress")
+    # Ensure the workflow run is owned by the current user
+    if workflow_run.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have permission to modify this workflow run",
+        )
+
+    # Update the status field
+    from backend.app.schemas.enums import WorkflowRunStatus
+
+    update_data = WorkflowRunUpdate(status=WorkflowRunStatus.IN_PROGRESS)
     updated_run = await workflow_run_crud.update_workflow_run(
         workflow_run_id, update_data
     )
 
-    if not updated_run:
+    return updated_run
+
+
+@router.post(
+    "/{workflow_run_id}/set-default",
+    response_model=WorkflowRunRead,
+    status_code=status.HTTP_200_OK,
+)
+async def set_default_workflow_run_endpoint(
+    workflow_run_id: str,
+    current_user: CurrentUser,
+    workflow_run_crud: WorkflowRunCRUDDep,
+):
+    """
+    Mark this workflow run as the default template for its agent.
+    When new chat sessions start, they will clone this run's configuration.
+    Only one template is allowed per agent - setting a new one clears the old one.
+    """
+    workflow_run = await workflow_run_crud.get_workflow_run(
+        workflow_run_id, user_id=current_user.id
+    )
+    if not workflow_run:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to start workflow run.",
+            status_code=status.HTTP_404_NOT_FOUND, detail="Workflow run not found"
         )
 
-    return updated_run
+    # Ensure the workflow run is owned by the current user
+    if workflow_run.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You don't have permission to modify this workflow run",
+        )
+
+    # Clear any existing template for this agent
+    from sqlalchemy import update
+    from backend.app.models.workflow_run import WorkflowRun
+
+    # Get the session from the crud
+    db_session = workflow_run_crud.session
+
+    # Clear all other templates for this agent
+    stmt = (
+        update(WorkflowRun)
+        .where(
+            WorkflowRun.agent_id == workflow_run.agent_id,
+            WorkflowRun.user_id == current_user.id,
+            WorkflowRun.is_template,
+        )
+        .values(is_template=False)
+    )
+    await db_session.execute(stmt)
+
+    # Set this run as the template
+    workflow_run.is_template = True
+    db_session.add(workflow_run)
+    await db_session.flush()
+    await db_session.refresh(workflow_run)
+
+    return workflow_run

@@ -27,6 +27,7 @@ class WorkflowRunUpdate(BaseModel):
 
 class WorkflowRunRead(WorkflowRunBase):
     id: str
+    is_template: bool = False
     created_at: datetime
     updated_at: datetime
     end_time: Optional[datetime] = None

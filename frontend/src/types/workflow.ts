@@ -35,9 +35,9 @@ export interface WorkflowBase {
     knowledge_base_document_ids?: string[];
 }
 
- 
+
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface WorkflowCreate extends WorkflowBase {}
+export interface WorkflowCreate extends WorkflowBase { }
 
 export interface WorkflowUpdate extends Partial<WorkflowBase> {
     name?: string;
@@ -61,9 +61,9 @@ export interface WorkflowRunBase {
     initial_data: Record<string, unknown>;
 }
 
- 
+
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface WorkflowRunCreate extends WorkflowRunBase {}
+export interface WorkflowRunCreate extends WorkflowRunBase { }
 
 export interface WorkflowRunUpdate extends Partial<WorkflowRunBase> {
     status?: string;
@@ -72,6 +72,7 @@ export interface WorkflowRunUpdate extends Partial<WorkflowRunBase> {
 
 export interface WorkflowRun extends WorkflowRunBase {
     id: string;
+    is_template?: boolean;
     created_at: string;
     updated_at: string;
     end_time?: string;

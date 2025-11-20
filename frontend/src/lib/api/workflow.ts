@@ -92,8 +92,15 @@ export async function getWorkflowRuns(
 }
 
 export async function startWorkflowRun(workflowRunId: string): Promise<WorkflowRun> {
-  return callApi<WorkflowRun>(`/workflow-runs/start/${workflowRunId}`, {
+  return callApi<WorkflowRun>(`/workflow-runs/${workflowRunId}/start`, {
     method: "POST",
   });
 }
+
+export async function setDefaultWorkflowRun(workflowRunId: string): Promise<WorkflowRun> {
+  return callApi<WorkflowRun>(`/workflow-runs/${workflowRunId}/set-default`, {
+    method: "POST",
+  });
+}
+
 

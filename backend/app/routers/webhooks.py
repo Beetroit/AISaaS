@@ -103,10 +103,75 @@ async def twilio_whatsapp_webhook(
     logger.info(f"Workflow run found: {workflow_run}")
 
     if not workflow_run:
-        raise HTTPException(
-            status_code=404,
-            detail="No active WorkflowRun found for this credential. Please start a run first.",
+        # No active run found - try to clone from default template
+        logger.info(
+            f"No active run found for credential {credential.id}. Looking for default template..."
         )
+
+        # First, get the agent for this credential
+        agent_stmt = select(Agent).where(Agent.user_id == credential.user_id)
+        agent = (await db.execute(agent_stmt)).scalar_one_or_none()
+
+        if not agent:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No agent found for user associated with credential {credential.phone_number}",
+            )
+
+        # Look for a template run for this agent
+        template_stmt = (
+            select(WorkflowRun)
+            .where(
+                WorkflowRun.agent_id == agent.id,
+                WorkflowRun.user_id == credential.user_id,
+                WorkflowRun.is_template,
+            )
+            .limit(1)
+        )
+        template_run = (await db.execute(template_stmt)).scalar_one_or_none()
+
+        if template_run:
+            # Clone the template run
+            logger.info(f"Found template run {template_run.id}. Cloning...")
+            workflow_run_data = WorkflowRunCreate(
+                agent_id=template_run.agent_id,
+                workflow_id=template_run.workflow_id,
+                user_id=template_run.user_id,
+                credential_id=credential.id,
+                status=WorkflowRunStatus.IN_PROGRESS,
+                initial_data=template_run.initial_data or {},
+            )
+            workflow_run = await workflow_run_crud.create_workflow_run(
+                workflow_run_data
+            )
+            logger.info(f"Created new run {workflow_run.id} from template")
+        else:
+            # Fallback: create from agent's first workflow
+            logger.info("No template found. Creating from agent's first workflow...")
+            agent_workflows_stmt = (
+                select(Workflow).join(Agent.workflows).where(Agent.id == agent.id)
+            )
+            agent_workflows = (await db.execute(agent_workflows_stmt)).scalars().all()
+
+            if not agent_workflows:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Agent {agent.id} has no workflows configured",
+                )
+
+            # Create new run from first workflow
+            workflow_run_data = WorkflowRunCreate(
+                agent_id=agent.id,
+                workflow_id=agent_workflows[0].id,
+                user_id=credential.user_id,
+                credential_id=credential.id,
+                status=WorkflowRunStatus.IN_PROGRESS,
+                initial_data={},
+            )
+            workflow_run = await workflow_run_crud.create_workflow_run(
+                workflow_run_data
+            )
+            logger.info(f"Created new run {workflow_run.id} from first workflow")
 
     # Get the decrypted credential data to extract twilio_auth_token
     twilio_credential_data = await credential_service.get_decrypted_credential_data(

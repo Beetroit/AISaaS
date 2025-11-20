@@ -51,7 +51,7 @@ class AgentWorkflowService:
     async def execute_workflow(
         self, workflow_run_id: str, user_message: str, send_response: bool = True
     ) -> str:
-        # First, retrieve the workflow run by its ID (user_id is optional in the updated method)
+        # First, retrieve the workflow run by its ID
         workflow_run = await self.workflow_run_crud.get_workflow_run(workflow_run_id)
         if not workflow_run:
             logger.error("WorkflowRun with ID %s not found.", workflow_run_id)
@@ -59,9 +59,7 @@ class AgentWorkflowService:
 
         user_id = workflow_run.user_id
 
-        agent = await self.lead_crud.session.get(
-            Agent, workflow_run.agent_id
-        )  # Assuming lead_crud.session is the main session
+        agent = await self.lead_crud.session.get(Agent, workflow_run.agent_id)
         workflow = await self.workflow_crud.get_workflow(
             workflow_run.workflow_id, user_id=user_id
         )
@@ -81,211 +79,302 @@ class AgentWorkflowService:
         nodes = {node["id"]: node for node in workflow.workflow_schema.get("nodes", [])}
         edges = workflow.workflow_schema.get("edges", [])
         knowledge_base_document_ids = workflow.knowledge_base_document_ids
+
+        # Determine current node
         current_node_id = chat_session.current_workflow_step or self._find_start_node(
             nodes
         )
         if not current_node_id:
             return "Error: Workflow has no start node."
 
+        # Initialize context
         workflow_context = {"user_message": user_message}
         response = ""
 
+        # Initialize lead collection state if needed
+        if chat_session.lead_collection_state is None:
+            chat_session.lead_collection_state = {"collected_data": {}}
+
         try:
-            while current_node_id:
+            # We process the workflow.
+            # For conversational nodes (Lead Extraction, Product QA), we process once and return response.
+            # If a transition happens (END tag), we move to the next node.
+            # If the NEXT node is also conversational, we STOP and wait for the next user input
+            # (unless we want to generate a greeting, but for now we stick to 1 turn = 1 response).
+            # If the NEXT node is automatic (Start, End, Logic), we continue looping.
+
+            steps_processed = 0
+            max_steps = 10  # Prevent infinite loops for automatic nodes
+
+            while current_node_id and steps_processed < max_steps:
+                steps_processed += 1
                 current_node = nodes.get(current_node_id)
                 if not current_node:
-                    logger.error(
-                        "Workflow error: Node ID %s not found in schema.",
-                        current_node_id,
-                    )
-                    raise ValueError("Workflow execution failed: Node not found.")
+                    raise ValueError(f"Node {current_node_id} not found.")
 
                 node_type = self._get_node_type(current_node)
+                logger.info(f"Processing node: {current_node_id} ({node_type})")
 
-                # Handle lead extraction node
-                if node_type == "lead_extraction":
-                    try:
-                        lead_config = LeadExtractionConfig(
-                            **current_node.get("data", {})
-                        )
-                        logger.info(
-                            f"Lead Extraction Config: {lead_config.model_dump_json()}"
-                        )
-                    except Exception as e:
-                        logger.error(
-                            "Invalid LeadExtractionConfig for node %s: %s",
-                            current_node_id,
-                            e,
-                        )
-                        return "Error: Invalid lead extraction configuration."
-
-                    if chat_session.lead_collection_state is None:
-                        chat_session.lead_collection_state = {
-                            "collected_data": {},
-                        }
-
-                    logger.info(
-                        f"Current Lead Collection State (Before): {json.dumps(chat_session.lead_collection_state, default=str)}"
-                    )
-
-                    (
-                        updated_lead_state,
-                        ai_response,
-                    ) = await self._extract_lead_info(
+                # --- AI Conversational Nodes ---
+                if node_type in ["lead_extraction", "product_qa"]:
+                    # Process the AI node
+                    ai_response_text, should_transition = await self._process_ai_node(
                         user_message=user_message,
-                        current_lead_state=chat_session.lead_collection_state,
-                        lead_config=lead_config,
-                        chat_session_id=chat_session.id,
-                    )
-                    chat_session.lead_collection_state = updated_lead_state
-                    self.chat_session_crud.session.add(chat_session)
-                    await self.chat_session_crud.session.flush()
-
-                    logger.info(
-                        f"Updated Lead Collection State (After): {json.dumps(chat_session.lead_collection_state, default=str)}"
+                        node=current_node,
+                        chat_session=chat_session,
+                        knowledge_base_document_ids=knowledge_base_document_ids,
+                        agent=agent,
                     )
 
-                    # Check if all required fields are collected AND validated
-                    collected_data = updated_lead_state.get("collected_data", {})
-                    missing_or_unvalidated = []
-                    for field in lead_config.fields:
-                        field_data = collected_data.get(field.name, {})
-                        if field.required and (
-                            not field_data.get("value")
-                            or not field_data.get("validated")
-                        ):
-                            missing_or_unvalidated.append(field.name)
+                    response = ai_response_text
 
-                    if missing_or_unvalidated:
-                        logger.info(
-                            f"Missing or unvalidated fields: {missing_or_unvalidated}"
-                        )
-                        response = ai_response  # AI provides the prompt for missing info/validation
-                        chat_session.current_workflow_step = (
-                            current_node_id  # Stay on this node
-                        )
+                    if should_transition:
+                        # Move to next node
+                        logger.info(f"Node {current_node_id} signaled transition.")
+                        next_node_id = self._find_next_node(current_node_id, edges)
+                        chat_session.current_workflow_step = next_node_id
+                        current_node_id = next_node_id
+
+                        # If we transitioned, we persist the state change
                         await self.chat_session_crud.session.flush()
+
+                        # If we transitioned, do we continue loop?
+                        # If next node is conversational, we should probably stop and let the user reply to the "response"
+                        # which was the "Goodbye/Transition" message from the previous node.
+                        # So we break.
+                        # Exception: If the response was empty (unlikely), maybe we want the next node to speak?
+                        # For now, assume 1 turn = 1 response.
                         break
                     else:
-                        # All required fields collected and validated, proceed to next node
-                        logger.info(
-                            "All required lead fields collected and validated for session %s. Persisting lead.",
-                            chat_session.id,
-                        )
-                        # Flatten data for storage: { "field": "value" }
-                        final_lead_data = {
-                            k: v["value"]
-                            for k, v in collected_data.items()
-                            if v.get("value")
-                        }
-                        logger.info(f"Final Lead Data to Persist: {final_lead_data}")
+                        # Stay on this node
+                        chat_session.current_workflow_step = current_node_id
+                        await self.chat_session_crud.session.flush()
+                        break  # Done for this turn
 
-                        existing_lead = (
-                            await self.lead_crud.get_lead_by_chat_session_id(
-                                chat_session.id
-                            )
-                        )
+                # --- Legacy / Automatic Nodes ---
+                else:
+                    # Handle Start, End, Custom Actions
+                    action_class = self.action_factory.get_action(node_type)
+                    action_instance = action_class()
 
-                        if existing_lead:
-                            logger.info(f"Updating existing lead: {existing_lead.id}")
-                            lead_update_data = LeadUpdate(contact_info=final_lead_data)
-                            await self.lead_crud.update_lead(
-                                existing_lead.id, lead_update_data
-                            )
-                        else:
-                            logger.info("Creating new lead.")
-                            lead_create_data = LeadCreate(
-                                contact_info=final_lead_data,
-                            )
-                            new_lead = await self.lead_crud.create_lead(
-                                lead=lead_create_data,
-                                user_id=chat_session.user_id,
-                                agent_id=chat_session.agent_id,
-                                chat_session_id=chat_session.id,
-                            )
-                            logger.info(f"New lead created: {new_lead.id}")
-                        pass  # Continue to find next node
-
-                # Handle product Q&A node
-                elif node_type == "product_qa":
-                    response = await self._answer_product_question(
-                        user_message=user_message,
+                    # Execute action
+                    action_result = await action_instance.execute(
+                        context=workflow_context,
+                        node_data=current_node.get("data", {}),
                         knowledge_base_document_ids=knowledge_base_document_ids,
                     )
-                    # After answering, we typically want to move to the next node
-                    # unless the answer itself implies a pause or further interaction.
-                    # For now, we'll let it proceed to the next node.
-                    # If the product_qa node should pause, it would return a "question_to_ask"
-                    # which is handled by the generic question handling below.
-                    pass
+                    workflow_context.update(action_result)
 
-                action_class = self.action_factory.get_action(node_type)
-                action_instance = action_class()
+                    # Move to next node
+                    next_node_id = self._find_next_node(current_node_id, edges)
+                    chat_session.current_workflow_step = next_node_id
+                    current_node_id = next_node_id
 
-                # Check for node completion requirements before executing the action
-                completion_requirements = current_node.get("data", {}).get(
-                    "completion_requirements"
-                )
-                if completion_requirements:
-                    missing_fields_prompt = self._check_node_completion(
-                        workflow_context, completion_requirements
-                    )
-                    if missing_fields_prompt:
-                        response = missing_fields_prompt
-                        chat_session.current_workflow_step = (
-                            current_node_id  # Stay on this node
-                        )
-                        await self.chat_session_crud.session.flush()
-                        break  # Exit the loop to send the prompt for missing info
-
-                # This context will be expanded to include all necessary services and data
-                action_result = await action_instance.execute(
-                    context=workflow_context,
-                    node_data=current_node.get("data", {}),
-                    knowledge_base_document_ids=knowledge_base_document_ids,
-                )
-
-                # Merge results into the main context
-                workflow_context.update(action_result)
-
-                # Special handling for questions that pause the workflow
-                if "question_to_ask" in action_result:
-                    response = action_result["question_to_ask"]
-                    chat_session.current_workflow_step = (
-                        current_node_id  # Stay on this node
-                    )
-                    await self.chat_session_crud.session.flush()
-                    break  # Exit the loop to send the question
-
-                # Find the next node
-                next_node_id = self._find_next_node(current_node_id, edges)
-                chat_session.current_workflow_step = next_node_id
-                current_node_id = next_node_id
-
-                if not current_node_id:  # Reached the end of a path
-                    logger.info(
-                        "Workflow path completed for session %s.", chat_session.id
-                    )
-                    workflow_run.status = "completed"
-                    workflow_run.end_time = datetime.now(timezone.utc)
-                    await self.workflow_run_crud.session.flush()
-                    break
+                    if not current_node_id:
+                        # End of workflow
+                        workflow_run.status = "completed"
+                        workflow_run.end_time = datetime.now(timezone.utc)
+                        await self.workflow_run_crud.session.flush()
+                        break
 
             if not response:
-                response = (
-                    "Workflow completed."  # Default response if no question is asked
-                )
+                response = "..."  # Should not happen for conversational nodes
 
             await self._handle_response_and_credits(
                 agent, chat_session, workflow_run, response, send_response
             )
             return response
+
         except Exception as e:
             logger.error("Error executing workflow run %s: %s", workflow_run_id, e)
             workflow_run.status = "failed"
-            workflow_run.end_time = datetime.now(timezone.utc)
             await self.workflow_run_crud.session.flush()
-            return "Error: An unexpected error occurred during workflow execution."
+            return "Error: An unexpected error occurred."
+
+    async def _process_ai_node(
+        self,
+        user_message: str,
+        node: Dict[str, Any],
+        chat_session: ChatSession,
+        knowledge_base_document_ids: Optional[list[str]],
+        agent: Agent,
+    ) -> tuple[str, bool]:
+        """
+        Generic handler for AI nodes.
+        Returns: (response_text, should_transition)
+        """
+        from backend.app.prompts.workflow_prompts import (
+            GENERAL_SYSTEM_PROMPT,
+            LEAD_EXTRACTION_PROMPT,
+            PRODUCT_QA_PROMPT,
+        )
+
+        node_type = self._get_node_type(node)
+        node_name = node.get("data", {}).get("label") or node.get("name") or node_type
+
+        system_prompt = GENERAL_SYSTEM_PROMPT
+        user_prompt = f"User Message: {user_message}\n"
+
+        # --- 1. Construct Prompt based on Node Type ---
+        if node_type == "lead_extraction":
+            lead_config = LeadExtractionConfig(**node.get("data", {}))
+
+            # Format fields description
+            fields_desc = "\n".join(
+                [
+                    f"- {f.name}: {f.description} (Required: {f.required})"
+                    for f in lead_config.fields
+                ]
+            )
+
+            # Get current state
+            current_data = chat_session.lead_collection_state.get("collected_data", {})
+            context_str = json.dumps(current_data, indent=2)
+
+            node_prompt = LEAD_EXTRACTION_PROMPT.format(
+                fields_description=fields_desc, context=context_str, node_name=node_name
+            )
+            system_prompt += "\n" + node_prompt
+
+        elif node_type == "product_qa":
+            # Retrieve context
+            context_text = ""
+            if knowledge_base_document_ids:
+                chunks = await self.retrieval_service.retrieve_relevant_chunks(
+                    query=user_message,
+                    user_id="system",
+                    document_ids=knowledge_base_document_ids,
+                )
+                context_text = "\n".join([c.document for c in chunks])
+
+            node_prompt = PRODUCT_QA_PROMPT.format(
+                kb_context=context_text, node_name=node_name
+            )
+            system_prompt += "\n" + node_prompt
+
+        # --- 2. AI Generation Loop (Validation Gate) ---
+        max_retries = 3
+        attempt = 0
+        last_error = ""
+
+        while attempt < max_retries:
+            attempt += 1
+
+            if last_error:
+                user_prompt += (
+                    f"\n\nSYSTEM ERROR: {last_error}\nPlease correct your response."
+                )
+
+            # Call AI
+            ai_raw_response = await self.ai_service.generate_response(
+                prompt=user_prompt, system_prompt=system_prompt
+            )
+
+            # --- 3. Parse Response ---
+            # Extract JSON
+            extracted_json = {}
+            clean_response = ai_raw_response
+
+            if "```json" in ai_raw_response:
+                try:
+                    json_str = (
+                        ai_raw_response.split("```json")[1].split("```")[0].strip()
+                    )
+                    extracted_json = json.loads(json_str)
+                    # Remove JSON from response text to show user
+                    # Regex or split might be safer, but for now simple replace
+                    # (Assuming JSON block is at the end or beginning)
+                    # Actually, we want to strip the JSON block from the text we send to the user.
+                    clean_response = ai_raw_response.replace(
+                        f"```json\n{json_str}\n```", ""
+                    ).strip()
+                    clean_response = clean_response.replace(
+                        f"```json{json_str}```", ""
+                    ).strip()
+                except Exception as e:
+                    logger.warning(f"Failed to parse JSON: {e}")
+
+            # Extract END tag
+            should_transition = False
+            end_tag = f"END {node_name}"
+            if end_tag in clean_response:
+                should_transition = True
+                clean_response = clean_response.replace(end_tag, "").strip()
+
+            # --- 4. Update State (Lead Extraction) ---
+            if node_type == "lead_extraction" and extracted_json:
+                # Update collected data
+                collected_data = chat_session.lead_collection_state.get(
+                    "collected_data", {}
+                )
+                for k, v in extracted_json.items():
+                    # We assume AI extracts valid values.
+                    # For stricter validation, we could check regex/types here.
+                    collected_data[k] = {
+                        "value": v,
+                        "validated": True,
+                    }  # AI implies validation by extracting it
+
+                chat_session.lead_collection_state["collected_data"] = collected_data
+                # Persist immediately so we don't lose data if we error later
+                self.chat_session_crud.session.add(chat_session)
+                await self.chat_session_crud.session.flush()
+
+            # --- 5. Validation Gate ---
+            if should_transition:
+                if node_type == "lead_extraction":
+                    # Check required fields
+                    lead_config = LeadExtractionConfig(**node.get("data", {}))
+                    collected_data = chat_session.lead_collection_state.get(
+                        "collected_data", {}
+                    )
+                    missing = []
+                    for field in lead_config.fields:
+                        if field.required:
+                            field_data = collected_data.get(field.name, {})
+                            if not field_data.get("value"):
+                                missing.append(field.name)
+
+                    if missing:
+                        # Validation Failed
+                        last_error = f"You cannot end the {node_name} phase yet. Missing required fields: {', '.join(missing)}. Please ask the user for this information."
+                        logger.info(f"Validation failed: {last_error}")
+                        continue  # Retry loop
+
+                    # Validation Passed
+                    # Persist Lead
+                    await self._persist_lead(chat_session, collected_data)
+
+                elif node_type == "product_qa":
+                    # No strict validation for QA
+                    pass
+
+            # If we got here, we are good (either no transition, or transition valid)
+            return clean_response, should_transition
+
+        # If retries exhausted
+        return "I'm having trouble processing that. Could you please repeat?", False
+
+    async def _persist_lead(self, chat_session: ChatSession, collected_data: Dict):
+        """Helper to save lead data to DB"""
+        final_data = {
+            k: v["value"] for k, v in collected_data.items() if v.get("value")
+        }
+        existing_lead = await self.lead_crud.get_lead_by_chat_session_id(
+            chat_session.id
+        )
+
+        if existing_lead:
+            await self.lead_crud.update_lead(
+                existing_lead.id, LeadUpdate(contact_info=final_data)
+            )
+        else:
+            await self.lead_crud.create_lead(
+                LeadCreate(contact_info=final_data),
+                user_id=chat_session.user_id,
+                agent_id=chat_session.agent_id,
+                chat_session_id=chat_session.id,
+            )
 
     def _check_node_completion(
         self,
@@ -402,172 +491,10 @@ class AgentWorkflowService:
         user_message: str,
         knowledge_base_document_ids: Optional[list[str]],
     ) -> str:
-        if not knowledge_base_document_ids:
-            return "I don't have access to product information for this agent."
-
-        # Retrieve relevant chunks from the knowledge base
-        relevant_chunks = await self.retrieval_service.retrieve_relevant_chunks(
-            query=user_message,
-            user_id="system",  # Or the actual user_id if relevant for filtering
-            document_ids=knowledge_base_document_ids,
-        )
-
-        if not relevant_chunks:
-            return "I couldn't find any relevant product information for your question."
-
-        context_text = "\n".join([chunk.document for chunk in relevant_chunks])
-
-        system_prompt = (
-            "You are a helpful AI assistant. Answer the user's question based "
-            "only on the provided product information context. If the answer "
-            "is not in the context, state that you don't have enough information."
-        )
-        user_prompt = (
-            f"Product Information Context:\n{context_text}\n\n"
-            f"User Question: {user_message}\n\n"
-            "Answer:"
-        )
-
-        try:
-            ai_response = await self.ai_service.generate_response(
-                prompt=user_prompt, system_message=system_prompt
-            )
-            return ai_response
-        except Exception as e:
-            logger.error("Error generating product Q&A response: %s", e)
-            return "An error occurred while trying to answer your question."
-
-    async def _extract_lead_info(
-        self,
-        user_message: str,
-        current_lead_state: Dict[str, Any],
-        lead_config: LeadExtractionConfig,
-        chat_session_id: str,
-    ) -> tuple[Dict[str, Any], str]:
-        collected_data = current_lead_state.get("collected_data", {})
-
-        # Initialize data structure if empty
-        # Structure: { "field_name": { "value": "some value", "validated": bool } }
-        if not collected_data:
-            for field in lead_config.fields:
-                collected_data[field.name] = {"value": None, "validated": False}
-
-        # Identify fields that need attention (missing or not validated)
-        fields_to_process = []
-        for field in lead_config.fields:
-            field_data = collected_data.get(
-                field.name, {"value": None, "validated": False}
-            )
-            if not field_data["value"] or not field_data["validated"]:
-                fields_to_process.append(field)
-
-        if not fields_to_process:
-            return (
-                {"collected_data": collected_data},
-                "All information has been collected and validated.",
-            )
-
-        # Construct the prompt for the AI
-        system_prompt = (
-            "You are an AI assistant designed to extract and validate lead information "
-            "from user conversations. Your goal is to identify values for specific fields "
-            "and ensure they are valid based on the field description. "
-            "For each field, you must determine if the user has provided a value "
-            "and if that value is valid/confirmed.\n\n"
-            "Output a JSON object with the following structure:\n"
-            "{\n"
-            '  "extracted_fields": {\n'
-            '    "field_name": { "value": "extracted value", "validated": boolean }\n'
-            "  },\n"
-            '  "follow_up_question": "Question to ask the user if information is missing or needs validation",\n'
-            '  "confirmation": "Message to send if all required fields are valid"\n'
-            "}\n\n"
-            "Rules:\n"
-            "1. If a value is new or changed, set 'validated' to false unless the user explicitly confirms it.\n"
-            "2. If you ask the user to confirm a value (e.g., 'Is your email x@y.com?') and they say yes, set 'validated' to true.\n"
-            "3. If a value is missing, set 'value' to null.\n"
-            "4. Prioritize required fields."
-        )
-
-        fields_desc = "\n".join(
-            [
-                f"- {f.name}: {f.description} (Required: {f.required})"
-                for f in lead_config.fields
-            ]
-        )
-
-        current_state_desc = json.dumps(collected_data, indent=2)
-
-        user_prompt = (
-            f"The user said: '{user_message}'.\n\n"
-            f"Fields to extract:\n{fields_desc}\n\n"
-            f"Current State:\n{current_state_desc}\n\n"
-            "Update the state based on the user's message. "
-            "If a value is present but not validated, you should probably ask for confirmation or check it against the description. "
-            "Provide a follow-up question to get missing info or validate existing info."
-        )
-
-        try:
-            ai_raw_response = await self.ai_service.generate_response(
-                prompt=user_prompt, system_message=system_prompt
-            )
-            logger.info(f"AI Raw Response for Lead Extraction: {ai_raw_response}")
-
-            # Clean up potential markdown code blocks
-            if "```json" in ai_raw_response:
-                ai_raw_response = (
-                    ai_raw_response.split("```json")[1].split("```")[0].strip()
-                )
-            elif "```" in ai_raw_response:
-                ai_raw_response = (
-                    ai_raw_response.split("```")[1].split("```")[0].strip()
-                )
-
-            ai_response_json = json.loads(ai_raw_response)
-            logger.info(f"Parsed AI Response JSON: {ai_response_json}")
-
-            extracted_fields = ai_response_json.get("extracted_fields", {})
-
-            # Update collected data
-            for field_name, data in extracted_fields.items():
-                if field_name in collected_data:
-                    # Only update if value is not None or if we are explicitly clearing it
-                    if data.get("value") is not None:
-                        collected_data[field_name]["value"] = data["value"]
-
-                    # Update validation status if provided
-                    if "validated" in data:
-                        collected_data[field_name]["validated"] = data["validated"]
-
-            # Determine AI's conversational response
-            ai_conversational_response = (
-                ai_response_json.get("follow_up_question")
-                or ai_response_json.get("confirmation")
-                or "Thank you."
-            )
-
-            updated_lead_state = {
-                "collected_data": collected_data,
-            }
-            return updated_lead_state, ai_conversational_response
-
-        except json.JSONDecodeError:
-            logger.error(
-                "AI response was not valid JSON for lead extraction: %s",
-                ai_raw_response,
-            )
-            return (
-                current_lead_state,
-                "I apologize, I had trouble understanding that. Could you please rephrase?",
-            )
-        except Exception as e:
-            logger.error(
-                "Error during lead extraction for session %s: %s", chat_session_id, e
-            )
-            return (
-                current_lead_state,
-                "An error occurred during lead extraction. Please try again.",
-            )
+        # This method is deprecated but kept for reference if needed,
+        # though the new logic handles it in _process_ai_node.
+        # We can safely remove it or leave it as dead code for now.
+        pass
 
     async def associate_workflow_with_agent(
         self,

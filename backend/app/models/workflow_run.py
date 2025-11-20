@@ -1,7 +1,8 @@
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Dict
 
-from sqlalchemy import JSON, DateTime, ForeignKey, String
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, String, false
+
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from ulid import ULID
 
@@ -43,6 +44,9 @@ class WorkflowRun(Base):
     status: Mapped[str] = mapped_column(
         String(50), default="in_progress"
     )  # e.g., "in_progress", "completed", "failed"
+    is_template: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=false(), index=True
+    )  # True if this run is a default template for cloning
     initial_data: Mapped[Dict[str, Any]] = mapped_column(
         JSON, default=dict
     )  # For UI testing or initial context
@@ -83,6 +87,7 @@ class WorkflowRun(Base):
             "credential_id": self.credential_id,
             "user_id": self.user_id,
             "status": self.status,
+            "is_template": self.is_template,
             "initial_data": self.initial_data,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
