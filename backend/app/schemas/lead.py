@@ -18,12 +18,10 @@ class LeadCreate(LeadBase):
 
 
 class LeadUpdate(BaseModel):
-    email: Optional[str] = None
-    phone_number: Optional[str] = None
-    name: Optional[str] = None
-    source: Optional[str] = None
     qualification_status: Optional[str] = None
+    source: Optional[str] = None
     contact_info: Optional[Dict[str, Any]] = None
+    notes: Optional[str] = None
 
 
 class LeadRead(BaseModel):
@@ -32,6 +30,7 @@ class LeadRead(BaseModel):
     agent_id: str
     chat_session_id: str
     qualification_status: str = "unqualified"
+    source: Optional[str] = None
     contact_info: Optional[Dict[str, Any]] = None
     notes: Optional[str] = None
     created_at: datetime

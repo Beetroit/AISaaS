@@ -12,12 +12,10 @@ export interface LeadCreate extends LeadBase {
 }
 
 export interface LeadUpdate {
-  email?: string | null;
-  phone_number?: string | null;
-  name?: string | null;
-  source?: string | null;
   qualification_status?: string | null;
-  contact_info?: string | null;
+  source?: string | null;
+  contact_info?: Record<string, unknown> | null;
+  notes?: string | null;
 }
 
 export interface LeadRead {
@@ -26,7 +24,8 @@ export interface LeadRead {
   agent_id: string;
   chat_session_id: string;
   qualification_status: string;
-  contact_info?: Record<string, any> | null;
+  source?: string | null;
+  contact_info?: Record<string, unknown> | null;
   notes?: string | null;
   created_at: string;
   updated_at: string;

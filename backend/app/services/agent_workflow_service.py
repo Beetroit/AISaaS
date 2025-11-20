@@ -452,10 +452,7 @@ class AgentWorkflowService:
             # Create new
             lead = await self.lead_crud.create_lead(
                 LeadCreate(
-                    agent_id=chat_session.agent_id,
-                    name=final_data.get("name", "Unknown"),
-                    email=final_data.get("email"),
-                    phone=final_data.get("phone"),
+                    source="whatsapp",  # Track lead source
                     contact_info=final_data,
                 ),
                 user_id=chat_session.user_id,
@@ -576,16 +573,6 @@ class AgentWorkflowService:
         else:
             logger.info("Agent %s has insufficient credits.", agent.id)
             return False
-
-    async def _answer_product_question(
-        self,
-        user_message: str,
-        knowledge_base_document_ids: Optional[list[str]],
-    ) -> str:
-        # This method is deprecated but kept for reference if needed,
-        # though the new logic handles it in _process_ai_node.
-        # We can safely remove it or leave it as dead code for now.
-        pass
 
     async def associate_workflow_with_agent(
         self,

@@ -60,6 +60,7 @@ export default function LeadsPage() {
             <thead>
               <tr className="w-full bg-gray-200 dark:bg-gray-700 text-left text-gray-600 dark:text-gray-300 uppercase text-sm">
                 <th className="py-3 px-4">Contact Info</th>
+                <th className="py-3 px-4">Source</th>
                 <th className="py-3 px-4">Status</th>
                 <th className="py-3 px-4">Actions</th>
               </tr>
@@ -79,6 +80,15 @@ export default function LeadsPage() {
                       </div>
                     ) : (
                       <span className="text-gray-500">No contact info</span>
+                    )}
+                  </td>
+                  <td className="py-3 px-4">
+                    {lead.source ? (
+                      <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded text-xs">
+                        {lead.source}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">—</span>
                     )}
                   </td>
                   <td className="py-3 px-4">
