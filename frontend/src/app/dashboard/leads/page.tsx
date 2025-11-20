@@ -59,9 +59,7 @@ export default function LeadsPage() {
           <table className="min-w-full bg-white dark:bg-gray-800 rounded-lg shadow">
             <thead>
               <tr className="w-full bg-gray-200 dark:bg-gray-700 text-left text-gray-600 dark:text-gray-300 uppercase text-sm">
-                <th className="py-3 px-4">Email</th>
-                <th className="py-3 px-4">Phone</th>
-                <th className="py-3 px-4">Name</th>
+                <th className="py-3 px-4">Contact Info</th>
                 <th className="py-3 px-4">Status</th>
                 <th className="py-3 px-4">Actions</th>
               </tr>
@@ -69,10 +67,28 @@ export default function LeadsPage() {
             <tbody>
               {leads.map((lead) => (
                 <tr key={lead.id} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700">
-                  <td className="py-3 px-4">{lead.email || 'N/A'}</td>
-                  <td className="py-3 px-4">{lead.phone_number || 'N/A'}</td>
-                  <td className="py-3 px-4">{lead.name || 'N/A'}</td>
-                  <td className="py-3 px-4">{lead.qualification_status || 'unqualified'}</td>
+                  <td className="py-3 px-4">
+                    {lead.contact_info && Object.keys(lead.contact_info).length > 0 ? (
+                      <div className="space-y-1">
+                        {Object.entries(lead.contact_info).map(([key, value]) => (
+                          <div key={key} className="text-sm">
+                            <span className="font-semibold capitalize">{key}:</span>{' '}
+                            <span>{String(value)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-gray-500">No contact info</span>
+                    )}
+                  </td>
+                  <td className="py-3 px-4">
+                    <span className={`px-2 py-1 rounded text-xs ${lead.qualification_status === 'qualified'
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-gray-100 text-gray-800'
+                      }`}>
+                      {lead.qualification_status || 'new'}
+                    </span>
+                  </td>
                   <td className="py-3 px-4 flex space-x-2">
                     <button
                       onClick={() => handleEditClick(lead.id)}

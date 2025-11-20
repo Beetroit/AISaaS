@@ -68,6 +68,16 @@ class LeadCRUD:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
+    async def get_leads_by_agent_ids(
+        self, agent_ids: List[str], skip: int = 0, limit: int = 100
+    ) -> List[Lead]:
+        """Get all leads collected by the specified agents."""
+        stmt = (
+            select(Lead).where(Lead.agent_id.in_(agent_ids)).offset(skip).limit(limit)
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
     async def update_lead(self, lead_id: str, lead: LeadUpdate) -> Optional[Lead]:
         db_lead = await self.get_lead(lead_id)
         if db_lead:

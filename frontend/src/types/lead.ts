@@ -20,13 +20,16 @@ export interface LeadUpdate {
   contact_info?: string | null;
 }
 
-export interface LeadRead extends LeadBase {
+export interface LeadRead {
   id: string;
   user_id: string;
   agent_id: string;
   chat_session_id: string;
-  created_at: string
-  updated_at: string
+  qualification_status: string;
+  contact_info?: Record<string, any> | null;
+  notes?: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface LeadMappingConfig {

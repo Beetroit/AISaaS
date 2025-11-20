@@ -26,11 +26,14 @@ class LeadUpdate(BaseModel):
     contact_info: Optional[Dict[str, Any]] = None
 
 
-class LeadRead(LeadBase):
+class LeadRead(BaseModel):
     id: str
     user_id: str
     agent_id: str
     chat_session_id: str
+    qualification_status: str = "unqualified"
+    contact_info: Optional[Dict[str, Any]] = None
+    notes: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
