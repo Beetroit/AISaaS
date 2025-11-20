@@ -48,7 +48,9 @@ class AgentWorkflowService:
         self.retrieval_service = retrieval_service
         self.action_factory = ActionFactory()
 
-    async def execute_workflow(self, workflow_run_id: str, user_message: str) -> str:
+    async def execute_workflow(
+        self, workflow_run_id: str, user_message: str, send_response: bool = True
+    ) -> str:
         # First, retrieve the workflow run by its ID (user_id is optional in the updated method)
         workflow_run = await self.workflow_run_crud.get_workflow_run(workflow_run_id)
         if not workflow_run:
@@ -106,6 +108,9 @@ class AgentWorkflowService:
                         lead_config = LeadExtractionConfig(
                             **current_node.get("data", {})
                         )
+                        logger.info(
+                            f"Lead Extraction Config: {lead_config.model_dump_json()}"
+                        )
                     except Exception as e:
                         logger.error(
                             "Invalid LeadExtractionConfig for node %s: %s",
@@ -118,6 +123,10 @@ class AgentWorkflowService:
                         chat_session.lead_collection_state = {
                             "collected_data": {},
                         }
+
+                    logger.info(
+                        f"Current Lead Collection State (Before): {json.dumps(chat_session.lead_collection_state, default=str)}"
+                    )
 
                     (
                         updated_lead_state,
@@ -132,6 +141,10 @@ class AgentWorkflowService:
                     self.chat_session_crud.session.add(chat_session)
                     await self.chat_session_crud.session.flush()
 
+                    logger.info(
+                        f"Updated Lead Collection State (After): {json.dumps(chat_session.lead_collection_state, default=str)}"
+                    )
+
                     # Check if all required fields are collected AND validated
                     collected_data = updated_lead_state.get("collected_data", {})
                     missing_or_unvalidated = []
@@ -144,6 +157,9 @@ class AgentWorkflowService:
                             missing_or_unvalidated.append(field.name)
 
                     if missing_or_unvalidated:
+                        logger.info(
+                            f"Missing or unvalidated fields: {missing_or_unvalidated}"
+                        )
                         response = ai_response  # AI provides the prompt for missing info/validation
                         chat_session.current_workflow_step = (
                             current_node_id  # Stay on this node
@@ -162,6 +178,7 @@ class AgentWorkflowService:
                             for k, v in collected_data.items()
                             if v.get("value")
                         }
+                        logger.info(f"Final Lead Data to Persist: {final_lead_data}")
 
                         existing_lead = (
                             await self.lead_crud.get_lead_by_chat_session_id(
@@ -170,20 +187,23 @@ class AgentWorkflowService:
                         )
 
                         if existing_lead:
+                            logger.info(f"Updating existing lead: {existing_lead.id}")
                             lead_update_data = LeadUpdate(contact_info=final_lead_data)
                             await self.lead_crud.update_lead(
                                 existing_lead.id, lead_update_data
                             )
                         else:
+                            logger.info("Creating new lead.")
                             lead_create_data = LeadCreate(
                                 contact_info=final_lead_data,
                             )
-                            await self.lead_crud.create_lead(
+                            new_lead = await self.lead_crud.create_lead(
                                 lead=lead_create_data,
                                 user_id=chat_session.user_id,
                                 agent_id=chat_session.agent_id,
                                 chat_session_id=chat_session.id,
                             )
+                            logger.info(f"New lead created: {new_lead.id}")
                         pass  # Continue to find next node
 
                 # Handle product Q&A node
@@ -257,7 +277,7 @@ class AgentWorkflowService:
                 )
 
             await self._handle_response_and_credits(
-                agent, chat_session, workflow_run, response
+                agent, chat_session, workflow_run, response, send_response
             )
             return response
         except Exception as e:
@@ -316,6 +336,7 @@ class AgentWorkflowService:
         chat_session: ChatSession,
         workflow_run: WorkflowRun,
         response: str,
+        send_response: bool = True,
     ):
         credits_decremented = await self._decrement_message_credits(agent)
         if not credits_decremented:
@@ -331,39 +352,40 @@ class AgentWorkflowService:
             )
         )
 
-        if workflow_run.credential_id:
-            credential_model = await self.credential_service.get_credential_by_id(
-                workflow_run.credential_id
-            )
-            if credential_model:
-                decrypted_creds = (
-                    await self.credential_service.get_decrypted_credential_data(
-                        credential_model
-                    )
+        if send_response:
+            if workflow_run.credential_id:
+                credential_model = await self.credential_service.get_credential_by_id(
+                    workflow_run.credential_id
                 )
-                if decrypted_creds:
-                    await self.messaging_service.send_message(
-                        to=chat_session.external_id,
-                        body=final_response,
-                        credential_model=credential_model,
+                if credential_model:
+                    decrypted_creds = (
+                        await self.credential_service.get_decrypted_credential_data(
+                            credential_model
+                        )
                     )
+                    if decrypted_creds:
+                        await self.messaging_service.send_message(
+                            to=chat_session.external_id,
+                            body=final_response,
+                            credential_model=credential_model,
+                        )
+                    else:
+                        logger.warning(
+                            "Could not decrypt credentials for Credential ID %s for WorkflowRun %s. Cannot send message.",
+                            workflow_run.credential_id,
+                            workflow_run.id,
+                        )
                 else:
                     logger.warning(
-                        "Could not decrypt credentials for Credential ID %s for WorkflowRun %s. Cannot send message.",
+                        "Credential with ID %s not found for WorkflowRun %s. Cannot send message.",
                         workflow_run.credential_id,
                         workflow_run.id,
                     )
             else:
                 logger.warning(
-                    "Credential with ID %s not found for WorkflowRun %s. Cannot send message.",
-                    workflow_run.credential_id,
+                    "No credential_id specified for WorkflowRun %s. Cannot send message.",
                     workflow_run.id,
                 )
-        else:
-            logger.warning(
-                "No credential_id specified for WorkflowRun %s. Cannot send message.",
-                workflow_run.id,
-            )
 
     async def _decrement_message_credits(self, agent: Agent, amount: int = 1) -> bool:
         if agent.message_credits >= amount:
@@ -489,6 +511,8 @@ class AgentWorkflowService:
             ai_raw_response = await self.ai_service.generate_response(
                 prompt=user_prompt, system_message=system_prompt
             )
+            logger.info(f"AI Raw Response for Lead Extraction: {ai_raw_response}")
+
             # Clean up potential markdown code blocks
             if "```json" in ai_raw_response:
                 ai_raw_response = (
@@ -500,6 +524,7 @@ class AgentWorkflowService:
                 )
 
             ai_response_json = json.loads(ai_raw_response)
+            logger.info(f"Parsed AI Response JSON: {ai_response_json}")
 
             extracted_fields = ai_response_json.get("extracted_fields", {})
 

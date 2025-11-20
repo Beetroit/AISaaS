@@ -6,7 +6,7 @@ class LeadExtractionAction(BaseAction):
     type = "lead_extraction"
     name = "Lead Extraction"
     description = "Extracts lead information from user messages."
-    inputs = {"user_message": "string"}
+    inputs = {"user_message": "string", "fields": "array"}
     outputs = {"extracted_lead_data": "object", "follow_up_question": "string"}
 
     async def execute(

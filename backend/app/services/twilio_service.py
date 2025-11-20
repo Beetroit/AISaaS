@@ -29,7 +29,7 @@ class TwilioService(MessagingService):
         try:
             client = Client(twilio_sid, twilio_auth_token)
             # Ensure 'whatsapp:' prefix is present but not duplicated
-            from_addr = from_number.strip()
+            from_addr = str(from_number).strip()
             if not from_addr.startswith("whatsapp:"):
                 from_addr = f"whatsapp:{from_addr}"
 

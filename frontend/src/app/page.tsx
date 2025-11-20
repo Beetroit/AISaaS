@@ -835,8 +835,8 @@ export default function LandingPage() {
                 <div
                   key={plan.id}
                   className={`plan card ${plan.popular
-                      ? 'plan-destacado text-white p-10 rounded-3xl border border-blue-800 flex flex-col justify-between shadow-2xl transform scale-105'
-                      : 'bg-gray-50 p-8 rounded-3xl border border-gray-200 flex flex-col justify-between'
+                    ? 'plan-destacado text-white p-10 rounded-3xl border border-blue-800 flex flex-col justify-between shadow-2xl transform scale-105'
+                    : 'bg-gray-50 p-8 rounded-3xl border border-gray-200 flex flex-col justify-between'
                     }`}
                 >
                   <div>
@@ -877,8 +877,8 @@ export default function LandingPage() {
                   <Link
                     href="#"
                     className={`py-3 rounded-full font-semibold text-center ${plan.popular
-                        ? 'bg-white text-blue-600 py-4 text-lg font-bold hover:bg-gray-100 shadow-lg'
-                        : 'bg-gray-100 text-gray-800 border border-gray-300 hover:bg-gray-200'
+                      ? 'bg-white text-blue-600 py-4 text-lg font-bold hover:bg-gray-100 shadow-lg'
+                      : 'bg-gray-100 text-gray-800 border border-gray-300 hover:bg-gray-200'
                       }`}
                   >
                     Comprar por {plan.price}

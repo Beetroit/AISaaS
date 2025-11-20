@@ -212,6 +212,7 @@ async def twilio_whatsapp_webhook(
     agent_response = await agent_workflow_service.execute_workflow(
         workflow_run_id=workflow_run.id,
         user_message=incoming_message,
+        send_response=False,  # Webhook handles response via TwiML
     )
 
     # Mark credential as available after workflow execution (or handle in agent_workflow_service)

@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { NodeType } from "@/types/workflow";
+import { LeadExtractionConfig } from "./nodes/LeadExtractionConfig";
 
 interface NodeConfigurationModalProps {
   nodeId: string;
@@ -82,22 +83,40 @@ export function NodeConfigurationModal({
                 )}
                 {/* Add more types as needed: boolean, object, array */}
                 {/* For 'object' or 'array', a Textarea or a more complex component might be needed */}
-                {(type === "object" || type === "array") && (
-                  <Textarea
-                    id={key}
-                    name={key}
-                    value={JSON.stringify(formData[key] || {}, null, 2)}
-                    onChange={(e) => {
-                      try {
-                        setFormData((prev: any) => ({ ...prev, [key]: JSON.parse(e.target.value) }));
-                      } catch (error) {
-                        // Handle invalid JSON input
-                        console.error("Invalid JSON input:", error);
+                {/* Special handling for Lead Extraction 'fields' */}
+                {nodeTypeSchema.type === "lead_extraction" && key === "fields" ? (
+                  <div className="col-span-4">
+                    <LeadExtractionConfig
+                      fields={formData[key] || []}
+                      onChange={(newFields) =>
+                        setFormData((prev: any) => ({ ...prev, [key]: newFields }))
                       }
-                    }}
-                    className="col-span-3"
-                    rows={4}
-                  />
+                    />
+                  </div>
+                ) : (
+                  <>
+                    {/* Generic handling for other types */}
+                    {(type === "object" || type === "array") && (
+                      <Textarea
+                        id={key}
+                        name={key}
+                        value={JSON.stringify(formData[key] || {}, null, 2)}
+                        onChange={(e) => {
+                          try {
+                            setFormData((prev: any) => ({
+                              ...prev,
+                              [key]: JSON.parse(e.target.value),
+                            }));
+                          } catch (error) {
+                            // Handle invalid JSON input
+                            console.error("Invalid JSON input:", error);
+                          }
+                        }}
+                        className="col-span-3"
+                        rows={4}
+                      />
+                    )}
+                  </>
                 )}
               </div>
             ))}

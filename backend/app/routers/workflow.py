@@ -7,7 +7,7 @@ from backend.app.dependencies import (
     DBSession,
     WorkflowCRUDDep,
 )
-from backend.app.schemas.workflow import WorkflowCreate, WorkflowRead
+from backend.app.schemas.workflow import WorkflowCreate, WorkflowRead, WorkflowUpdate
 from backend.app.services.workflow_actions.factory import ActionFactory
 
 router = APIRouter(prefix="/workflows", tags=["workflows"])
@@ -79,3 +79,26 @@ async def get_workflow_endpoint(
             status_code=status.HTTP_404_NOT_FOUND, detail="Workflow not found"
         )
     return workflow
+
+
+@router.put("/{workflow_id}", response_model=WorkflowRead)
+async def update_workflow_endpoint(
+    workflow_id: str,
+    workflow_data: WorkflowUpdate,
+    current_user: CurrentUser,
+    workflow_crud: WorkflowCRUDDep,
+):
+    """Update an existing workflow."""
+    # First check if workflow exists and belongs to user
+    existing_workflow = await workflow_crud.get_workflow(
+        workflow_id=workflow_id, user_id=current_user.id
+    )
+    if not existing_workflow:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Workflow not found"
+        )
+
+    updated_workflow = await workflow_crud.update_workflow(
+        workflow_id=workflow_id, workflow_data=workflow_data
+    )
+    return updated_workflow

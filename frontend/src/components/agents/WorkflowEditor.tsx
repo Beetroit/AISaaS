@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useMemo, useState } from "react";
+import { useNodeTypes } from "@/hooks/useWorkflow";
 import ReactFlow, {
   addEdge,
   applyEdgeChanges,
@@ -97,11 +98,16 @@ export const WorkflowEditor = ({ initialSchema, onSchemaChange }: WorkflowEditor
     setEditingNodeTypeSchema(null);
   }, []);
 
+  const { data: availableNodeTypes } = useNodeTypes();
+
   const handleNodeClick = useCallback((id: string, data: NodeType) => {
     setEditingNodeId(id);
     setEditingNodeData(data); // Use data directly from the prop
-    setEditingNodeTypeSchema(data);
-  }, []); // Removed 'nodes' from dependencies
+
+    // Try to find the latest schema for this node type
+    const freshSchema = availableNodeTypes?.find((nt) => nt.type === data.type);
+    setEditingNodeTypeSchema(freshSchema || data);
+  }, [availableNodeTypes]);
 
   const handleNodeDelete = useCallback((nodeId: string) => {
     setNodes((nds) => nds.filter((node) => node.id !== nodeId));
