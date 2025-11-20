@@ -28,6 +28,14 @@ class Message(Base):
         "ChatSession", back_populates="messages"
     )
 
+    @property
+    def is_user_message(self) -> bool:
+        return self.role == "user"
+
+    @property
+    def is_agent_message(self) -> bool:
+        return self.role == "agent"
+
     def __repr__(self) -> str:
         return (
             f"<Message(id='{self.id}', chat_session_id='{self.chat_session_id}', "

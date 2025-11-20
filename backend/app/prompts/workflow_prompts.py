@@ -43,7 +43,10 @@ Knowledge Base Context:
 Instructions:
 1. Answer the user's questions accurately based on the provided context.
 2. If you don't know the answer, politely say so and offer to connect them with a human agent.
-3. If the user seems satisfied or indicates they are done with questions, you can end this phase.
-4. To end this phase, append the following tag to the end of your response:
+3. Do NOT use the END tag immediately. You should answer the question and wait for the user to acknowledge or ask another question.
+4. Only end this phase if the user explicitly says they are done or says goodbye.
+5. To end this phase, append the following tag to the end of your response:
 END {node_name}
+
+IMPORTANT: Never output ONLY the END tag. You must always provide a response to the user first.
 """

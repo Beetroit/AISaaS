@@ -12,7 +12,7 @@ from openai import (
 from openai.lib.streaming.responses import ResponseStreamEvent
 from openai.types.responses import FunctionToolParam, Response
 
-from backend.app.config import settings, logger
+from backend.app.config import logger, settings
 
 
 class OpenAIService:
@@ -162,7 +162,8 @@ class OpenAIService:
         )
         if isinstance(response, AsyncStream):
             raise TypeError("Expected a non-streaming response, but received a stream.")
-        return response.text[0].text
+
+        return response.output_text
 
     def _convert_tools_to_gpt5_format(
         self, tools: List[Dict]

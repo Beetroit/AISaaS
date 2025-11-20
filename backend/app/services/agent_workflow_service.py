@@ -64,7 +64,9 @@ class AgentWorkflowService:
             workflow_run.workflow_id, user_id=user_id
         )
         chat_session = (
-            await self.chat_session_crud.get_chat_session(workflow_run.chat_session_id)
+            await self.chat_session_crud.get_chat_session_with_messages(
+                workflow_run.chat_session_id
+            )
             if workflow_run.chat_session_id
             else None
         )
@@ -216,8 +218,36 @@ class AgentWorkflowService:
         user_prompt = f"User Message: {user_message}\n"
 
         # --- 1. Construct Prompt based on Node Type ---
+        # Retrieve Chat History
+        history_text = ""
+
+        # Retrieve last 5 messages for context
+        # We use the chat_session relationship to get messages
+        # Assuming messages are ordered by created_at
+        if chat_session.messages:
+            # Sort by created_at just in case
+            sorted_messages = sorted(chat_session.messages, key=lambda m: m.created_at)
+            # Take last 5, excluding the current one if it was already added (it shouldn't be yet)
+            recent_messages = sorted_messages[-5:]
+
+            history_lines = []
+            for msg in recent_messages:
+                sender = "User" if msg.is_user_message else "AI"
+                history_lines.append(f"{sender}: {msg.content}")
+
+            history_text = "\n".join(history_lines)
+            logger.info(f"Retrieved {len(recent_messages)} messages for context")
+        # except Exception as e:
+        #     logger.warning(f"Failed to retrieve chat history: {e}")
+
         if node_type == "lead_extraction":
+            logger.info("[Lead Extraction] Starting node processing")
+            logger.info(f"[Lead Extraction] User message: {user_message}")
+
             lead_config = LeadExtractionConfig(**node.get("data", {}))
+            logger.info(
+                f"[Lead Extraction] Fields config: {[f.name for f in lead_config.fields]}"
+            )
 
             # Format fields description
             fields_desc = "\n".join(
@@ -229,11 +259,20 @@ class AgentWorkflowService:
 
             # Get current state
             current_data = chat_session.lead_collection_state.get("collected_data", {})
+            logger.info(
+                f"[Lead Extraction] Current collected data: {json.dumps(current_data, indent=2)}"
+            )
+
             context_str = json.dumps(current_data, indent=2)
 
             node_prompt = LEAD_EXTRACTION_PROMPT.format(
                 fields_description=fields_desc, context=context_str, node_name=node_name
             )
+
+            # Inject history into system prompt
+            if history_text:
+                node_prompt += f"\n\nConversation History:\n{history_text}"
+
             system_prompt += "\n" + node_prompt
 
         elif node_type == "product_qa":
@@ -250,6 +289,11 @@ class AgentWorkflowService:
             node_prompt = PRODUCT_QA_PROMPT.format(
                 kb_context=context_text, node_name=node_name
             )
+
+            # Inject history into system prompt
+            if history_text:
+                node_prompt += f"\n\nConversation History:\n{history_text}"
+
             system_prompt += "\n" + node_prompt
 
         # --- 2. AI Generation Loop (Validation Gate) ---
@@ -270,6 +314,9 @@ class AgentWorkflowService:
                 prompt=user_prompt, system_prompt=system_prompt
             )
 
+            if node_type == "lead_extraction":
+                logger.info(f"[Lead Extraction] AI raw response: {ai_raw_response}")
+
             # --- 3. Parse Response ---
             # Extract JSON
             extracted_json = {}
@@ -281,10 +328,13 @@ class AgentWorkflowService:
                         ai_raw_response.split("```json")[1].split("```")[0].strip()
                     )
                     extracted_json = json.loads(json_str)
+
+                    if node_type == "lead_extraction":
+                        logger.info(
+                            f"[Lead Extraction] Extracted JSON: {json.dumps(extracted_json, indent=2)}"
+                        )
+
                     # Remove JSON from response text to show user
-                    # Regex or split might be safer, but for now simple replace
-                    # (Assuming JSON block is at the end or beginning)
-                    # Actually, we want to strip the JSON block from the text we send to the user.
                     clean_response = ai_raw_response.replace(
                         f"```json\n{json_str}\n```", ""
                     ).strip()
@@ -293,6 +343,9 @@ class AgentWorkflowService:
                     ).strip()
                 except Exception as e:
                     logger.warning(f"Failed to parse JSON: {e}")
+            else:
+                if node_type == "lead_extraction":
+                    logger.warning("[Lead Extraction] No JSON extracted from response")
 
             # Extract END tag
             should_transition = False
@@ -320,9 +373,17 @@ class AgentWorkflowService:
                 self.chat_session_crud.session.add(chat_session)
                 await self.chat_session_crud.session.flush()
 
+                logger.info(
+                    f"[Lead Extraction] Updated collected data: {json.dumps(collected_data, indent=2)}"
+                )
+                logger.info(
+                    f"[Lead Extraction] Fields now populated: {list(collected_data.keys())}"
+                )
             # --- 5. Validation Gate ---
             if should_transition:
                 if node_type == "lead_extraction":
+                    logger.info("[Lead Extraction] AI signaled END tag")
+
                     # Check required fields
                     lead_config = LeadExtractionConfig(**node.get("data", {}))
                     collected_data = chat_session.lead_collection_state.get(
@@ -338,8 +399,15 @@ class AgentWorkflowService:
                     if missing:
                         # Validation Failed
                         last_error = f"You cannot end the {node_name} phase yet. Missing required fields: {', '.join(missing)}. Please ask the user for this information."
+                        logger.info(
+                            f"[Lead Extraction] Validation FAILED - Missing: {missing}"
+                        )
                         logger.info(f"Validation failed: {last_error}")
                         continue  # Retry loop
+
+                    logger.info(
+                        "[Lead Extraction] Validation PASSED - All required fields collected"
+                    )
 
                     # Validation Passed
                     # Persist Lead
@@ -350,6 +418,9 @@ class AgentWorkflowService:
                     pass
 
             # If we got here, we are good (either no transition, or transition valid)
+            logger.info(
+                f"AI Node Response: '{clean_response}', Transition: {should_transition}"
+            )
             return clean_response, should_transition
 
         # If retries exhausted
@@ -358,23 +429,43 @@ class AgentWorkflowService:
     async def _persist_lead(self, chat_session: ChatSession, collected_data: Dict):
         """Helper to save lead data to DB"""
         final_data = {
-            k: v["value"] for k, v in collected_data.items() if v.get("value")
+            k: v.get("value") for k, v in collected_data.items() if v.get("value")
         }
-        existing_lead = await self.lead_crud.get_lead_by_chat_session_id(
-            chat_session.id
+
+        logger.info(
+            f"[Lead Extraction] Persisting lead data: {json.dumps(final_data, indent=2)}"
         )
 
-        if existing_lead:
-            await self.lead_crud.update_lead(
-                existing_lead.id, LeadUpdate(contact_info=final_data)
-            )
+        # Create or update lead
+        if chat_session.lead_id:
+            # Update existing
+            lead = await self.lead_crud.get_lead(chat_session.lead_id)
+            if lead:
+                # Merge new data
+                current_info = lead.contact_info or {}
+                current_info.update(final_data)
+                await self.lead_crud.update_lead(
+                    lead.id, LeadUpdate(contact_info=current_info)
+                )
+                logger.info(f"[Lead Extraction] Updated existing lead: {lead.id}")
         else:
-            await self.lead_crud.create_lead(
-                LeadCreate(contact_info=final_data),
+            # Create new
+            lead = await self.lead_crud.create_lead(
+                LeadCreate(
+                    agent_id=chat_session.agent_id,
+                    name=final_data.get("name", "Unknown"),
+                    email=final_data.get("email"),
+                    phone=final_data.get("phone"),
+                    contact_info=final_data,
+                ),
                 user_id=chat_session.user_id,
                 agent_id=chat_session.agent_id,
                 chat_session_id=chat_session.id,
             )
+            chat_session.lead_id = lead.id
+            self.chat_session_crud.session.add(chat_session)
+            await self.chat_session_crud.session.flush()
+            logger.info(f"[Lead Extraction] Created new lead: {lead.id}")
 
     def _check_node_completion(
         self,

@@ -43,6 +43,7 @@ class ChatSession(Base):
     lead_collection_state: Mapped[Dict[str, Any] | None] = mapped_column(
         JSON, nullable=True
     )
+    lead_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     user: Mapped["User"] = relationship("User", back_populates="chat_sessions")
     agent: Mapped["Agent"] = relationship("Agent", back_populates="chat_sessions")
