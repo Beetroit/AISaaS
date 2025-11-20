@@ -73,6 +73,12 @@ class WorkflowRunCRUD:
 
         return True
 
+    async def delete_workflow_runs_bulk(self, workflow_run_ids: List[str]) -> int:
+        """Delete multiple workflow runs and return count of deleted rows."""
+        stmt = delete(WorkflowRun).where(WorkflowRun.id.in_(workflow_run_ids))
+        result = await self.session.execute(stmt)
+        return result.rowcount or 0
+
     async def get_workflow_runs_for_user(
         self,
         user_id: str,

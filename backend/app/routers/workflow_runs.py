@@ -209,3 +209,25 @@ async def set_default_workflow_run_endpoint(
     await db_session.refresh(workflow_run)
 
     return workflow_run
+
+
+@router.post("/bulk-delete", status_code=status.HTTP_200_OK)
+async def bulk_delete_workflow_runs_endpoint(
+    workflow_run_ids: List[str],
+    current_user: CurrentUser,
+    workflow_run_crud: WorkflowRunCRUDDep,
+):
+    """Delete multiple workflow runs. Only deletes runs owned by current user."""
+    # Verify all runs belong to current user
+    for run_id in workflow_run_ids:
+        run = await workflow_run_crud.get_workflow_run(run_id, user_id=current_user.id)
+        if not run:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Workflow run {run_id} not found or not owned by user",
+            )
+
+    # Delete all runs
+    deleted_count = await workflow_run_crud.delete_workflow_runs_bulk(workflow_run_ids)
+
+    return {"deleted_count": deleted_count, "deleted_ids": workflow_run_ids}
