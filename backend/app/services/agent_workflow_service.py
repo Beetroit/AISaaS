@@ -342,10 +342,34 @@ class AgentWorkflowService:
                         f"```json{json_str}```", ""
                     ).strip()
                 except Exception as e:
-                    logger.warning(f"Failed to parse JSON: {e}")
+                    logger.warning(f"Failed to parse JSON from code fence: {e}")
             else:
-                if node_type == "lead_extraction":
-                    logger.warning("[Lead Extraction] No JSON extracted from response")
+                # Fallback: Try to extract raw JSON (without code fences)
+                try:
+                    # Look for JSON object patterns like {...}
+                    import re
+
+                    json_match = re.search(
+                        r"\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}", ai_raw_response
+                    )
+                    if json_match:
+                        json_str = json_match.group(0)
+                        extracted_json = json.loads(json_str)
+
+                        if node_type == "lead_extraction":
+                            logger.info(
+                                f"[Lead Extraction] Extracted JSON (no fence): {json.dumps(extracted_json, indent=2)}"
+                            )
+
+                        # Remove JSON from response text
+                        clean_response = ai_raw_response.replace(json_str, "").strip()
+                    elif node_type == "lead_extraction":
+                        logger.warning("[Lead Extraction] No JSON found in response")
+                except Exception as e:
+                    if node_type == "lead_extraction":
+                        logger.warning(
+                            f"[Lead Extraction] Failed to extract raw JSON: {e}"
+                        )
 
             # Extract END tag
             should_transition = False

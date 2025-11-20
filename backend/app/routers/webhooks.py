@@ -192,8 +192,6 @@ async def twilio_whatsapp_webhook(
 
     validator = RequestValidator(twilio_auth_token)
     request_url = str(request.url)
-    for i, v in request.headers.items():
-        logger.info(f"Header: {i} = {v}")
     # Handle reverse proxy/tunnel case where app sees http but Twilio sent https
     forwarded_proto = request.headers.get("x-forwarded-proto")
     forwarded_port = request.headers.get("x-forwarded-port")
@@ -202,7 +200,6 @@ async def twilio_whatsapp_webhook(
     ) and request_url.startswith("http://"):
         request_url = request_url.replace("http://", "https://", 1)
 
-    logger.info(f"Twilio request URL: {request_url}")
     x_twilio_signature = request.headers.get("x-twilio-signature")
     if not x_twilio_signature or not validator.validate(
         request_url, form_params_dict, x_twilio_signature
