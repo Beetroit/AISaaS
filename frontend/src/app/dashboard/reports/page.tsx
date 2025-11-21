@@ -40,7 +40,15 @@ export default function ReportsPage() {
 
   return (
     <div className="p-4">
-      <h1 className="text-3xl font-bold mb-6">Message Usage Reports</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Message Usage Reports</h1>
+        <a
+          href="/dashboard/reports/sessions"
+          className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+        >
+          View Chat Sessions
+        </a>
+      </div>
 
       <div className="mb-8 p-4 border rounded-md bg-white dark:bg-gray-800 shadow">
         <h2 className="text-xl font-bold mb-2">Overall Usage</h2>
@@ -63,31 +71,7 @@ export default function ReportsPage() {
         )}
       </div>
 
-      <div className="mb-8 p-4 border rounded-md bg-white dark:bg-gray-800 shadow">
-        <h2 className="text-xl font-bold mb-2">Messages Over Time (Last 30 Days)</h2>
-        {report.messages_over_time.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="min-w-full bg-white dark:bg-gray-800 rounded-lg shadow">
-              <thead>
-                <tr className="w-full bg-gray-200 dark:bg-gray-700 text-left text-gray-600 dark:text-gray-300 uppercase text-sm">
-                  <th className="py-3 px-4">Date</th>
-                  <th className="py-3 px-4">Messages</th>
-                </tr>
-              </thead>
-              <tbody>
-                {report.messages_over_time.map((entry) => (
-                  <tr key={entry.date} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700">
-                    <td className="py-3 px-4">{entry.date}</td>
-                    <td className="py-3 px-4">{entry.count}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p>No message activity in the last 30 days.</p>
-        )}
-      </div>
+
     </div>
   );
 }

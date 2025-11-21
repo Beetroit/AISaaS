@@ -2,10 +2,10 @@ import hashlib
 import hmac
 import json
 import logging
+
 import stripe
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import Response
 from twilio.request_validator import RequestValidator
 
@@ -14,11 +14,11 @@ from backend.app.dependencies import (
     AgentWorkflowServiceDep,
     ChatSessionCRUDDep,
     CredentialServiceDep,
+    DBSession,
     LeadCRUDDep,
     MessageCRUDDep,
-    StripeServiceDep,  # Added StripeServiceDep
+    StripeServiceDep,
     WorkflowRunCRUDDep,
-    get_db,
 )
 from backend.app.models.agent import Agent
 from backend.app.models.credential import Credential
@@ -57,7 +57,7 @@ async def twilio_whatsapp_webhook(
     lead_crud: LeadCRUDDep,
     message_crud: MessageCRUDDep,
     workflow_run_crud: WorkflowRunCRUDDep,
-    db: AsyncSession = Depends(get_db),
+    db: DBSession,
 ):
     """
     Handles incoming WhatsApp messages from Twilio.
@@ -247,13 +247,21 @@ async def twilio_whatsapp_webhook(
     # Ensure a lead exists for this chat session (if needed by the workflow)
     # The workflow run might already have a lead_id, or we might need to create one.
     # Current logic: If run has lead_id, use it. If not, check session. If not, create.
+    # Ensure a lead exists for this chat session (if needed by the workflow)
+    # The workflow run might already have a lead_id, or we might need to create one.
+    # Current logic: If run has lead_id, use it. If not, check session. If not, create.
     if not workflow_run.lead_id:
         lead = await lead_crud.get_lead_by_chat_session_id(chat_session.id)
         if not lead:
+            # Extract profile name from Twilio data, fallback to phone number
+            profile_name = form_params_dict.get("ProfileName")
+            lead_name = profile_name if profile_name else from_number
+
             lead_create = LeadCreate(
-                name="New Lead from WhatsApp",
+                name=lead_name,
                 contact_info={"phone": from_number},
                 qualification_status="new",
+                source="whatsapp",
             )
             lead = await lead_crud.create_lead(
                 lead=lead_create,
@@ -298,7 +306,7 @@ async def lead_intake_webhook(
     lead_crud: LeadCRUDDep,
     workflow_run_crud: WorkflowRunCRUDDep,
     agent_workflow_service: AgentWorkflowServiceDep,
-    db: AsyncSession = Depends(get_db),
+    db: DBSession,
 ):
     lead_webhook_secret = await credential_service.get_webhook_secret(
         client_id, "lead_webhook_secret"
@@ -386,7 +394,7 @@ async def lead_intake_webhook(
             agent_id=agent.id,
             workflow_id=selected_workflow.id,
             lead_id=new_lead.id,
-            user_id=agent.user_id,  # Added user_id
+            user_id=agent.user_id,
             status=WorkflowRunStatus.IN_PROGRESS,
             initial_data=webhook_data,  # Store the raw webhook data as initial data
         )
@@ -414,10 +422,11 @@ async def lead_intake_webhook(
 
 
 @router.post("/stripe")
+@router.get("/stripe")
 async def stripe_webhook(
     request: Request,
-    stripe_service: StripeServiceDep,  # Added StripeServiceDep
-    db: AsyncSession = Depends(get_db),  # Added db dependency
+    stripe_service: StripeServiceDep,
+    db: DBSession,
 ):
     stripe_webhook_secret = settings.stripe_webhook_secret
 
@@ -437,7 +446,7 @@ async def stripe_webhook(
         event = stripe.Webhook.construct_event(
             payload=body, sig_header=sig_header, secret=stripe_webhook_secret
         )
-        logger.info(f"Stripe webhook event received: {event}")  # Added logging
+        logger.info(f"Stripe webhook event received: {event}")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=f"Invalid payload: {e}")
     except stripe.SignatureVerificationError as e:

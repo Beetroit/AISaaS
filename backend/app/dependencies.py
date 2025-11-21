@@ -16,7 +16,6 @@ from backend.app.crud.chat_session_crud import ChatSessionCRUD, select
 from backend.app.crud.knowledge_base_document_crud import KnowledgeBaseDocumentCRUD
 from backend.app.crud.lead_crud import LeadCRUD
 from backend.app.crud.message_crud import MessageCRUD
-
 from backend.app.crud.pricing_plan_crud import PricingPlanCRUD
 from backend.app.crud.user_crud import UserCRUD
 from backend.app.crud.workflow_crud import WorkflowCRUD
@@ -31,8 +30,9 @@ from backend.app.services.document_processor_service import DocumentProcessorSer
 from backend.app.services.google_calendar_service import GoogleCalendarService
 from backend.app.services.messaging_service import MessagingService
 from backend.app.services.openai_service import OpenAIService
+from backend.app.services.report_service import ReportService
 from backend.app.services.retrieval_service import RetrievalService
-from backend.app.services.stripe_service import StripeService  # Added StripeService
+from backend.app.services.stripe_service import StripeService
 from backend.app.services.twilio_service import TwilioService
 from backend.app.services.webhook_service import WebhookService
 
@@ -243,6 +243,12 @@ async def get_current_user(
     return user
 
 
+def get_report_service(
+    db: AsyncSession = Depends(get_db),
+) -> ReportService:
+    return ReportService(db=db)
+
+
 UserCRUDDep = Annotated[UserCRUD, Depends(get_user_crud)]
 AgentCRUDDep = Annotated[AgentCRUD, Depends(get_agent_crud)]
 ChatSessionCRUDDep = Annotated[ChatSessionCRUD, Depends(get_chat_session_crud)]
@@ -273,3 +279,4 @@ GoogleCalendarServiceDep = Annotated[
 ChromaClientDep = Annotated[ClientAPI, Depends(get_chroma_client)]
 WebhookServiceDep = Annotated["WebhookService", Depends(get_webhook_service)]
 StripeServiceDep = Annotated[StripeService, Depends(get_stripe_service)]
+ReportServiceDep = Annotated[ReportService, Depends(get_report_service)]
