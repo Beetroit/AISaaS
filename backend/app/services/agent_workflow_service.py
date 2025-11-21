@@ -155,7 +155,42 @@ class AgentWorkflowService:
 
                 # --- Legacy / Automatic Nodes ---
                 else:
-                    # Handle Start, End, Custom Actions
+                    # Special handling for "end" node when user sends a message
+                    if node_type == "end":
+                        logger.info(
+                            "User sent message while at end node. Attempting to move back to previous node."
+                        )
+                        # Find previous node (reverse edge lookup)
+                        previous_node_id = self._find_previous_node(
+                            current_node_id, edges
+                        )
+
+                        if previous_node_id:
+                            previous_node = nodes.get(previous_node_id)
+                            previous_type = self._get_node_type(previous_node)
+
+                            # Only move back if previous is not "start"
+                            if previous_type != "start":
+                                logger.info(
+                                    f"Moving back from end node to {previous_node_id} ({previous_type})"
+                                )
+                                current_node_id = previous_node_id
+                                chat_session.current_workflow_step = current_node_id
+                                await self.chat_session_crud.session.flush()
+                                # Continue loop to process on the previous node
+                                continue
+                            else:
+                                logger.warning(
+                                    "Previous node is start. Cannot move back further."
+                                )
+                                response = "Thank you for your message. This conversation has ended."
+                                break
+                        else:
+                            logger.warning("No previous node found for end node.")
+                            response = "Thank you for your message. This conversation has ended."
+                            break
+
+                    # Handle Start, End (non-fallback case), Custom Actions
                     action_class = self.action_factory.get_action(node_type)
                     action_instance = action_class()
 
@@ -529,6 +564,15 @@ class AgentWorkflowService:
         for edge in edges:
             if edge.get("source") == current_node_id:
                 return edge.get("target")
+        return None
+
+    def _find_previous_node(
+        self, target_node_id: str, edges: list[dict[str, Any]]
+    ) -> Optional[str]:
+        """Find the node that leads to the target node (reverse edge lookup)"""
+        for edge in edges:
+            if edge.get("target") == target_node_id:
+                return edge.get("source")
         return None
 
     async def _handle_response_and_credits(

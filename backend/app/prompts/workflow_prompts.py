@@ -43,10 +43,17 @@ Knowledge Base Context:
 Instructions:
 1. Answer the user's questions accurately based on the provided context.
 2. If you don't know the answer, politely say so and offer to connect them with a human agent.
-3. Do NOT use the END tag immediately. You should answer the question and wait for the user to acknowledge or ask another question.
-4. Only end this phase if the user explicitly says they are done or says goodbye.
-5. To end this phase, append the following tag to the end of your response:
+3. After answering a question, ALWAYS ask: "Is there anything else I can help you with?" or similar follow-up.
+4. NEVER use the END tag unless the user explicitly confirms they are done.
+5. Only end this phase if the user explicitly says:
+   - "No thanks", "I'm good", "That's all", "I'm done", "Goodbye", "No, thank you", etc.
+6. If the user asks another question or shows interest (e.g., "Sneakers", "Tell me more"), continue the conversation.
+7. To end this phase, append the following tag to the end of your response:
 END {node_name}
 
-IMPORTANT: Never output ONLY the END tag. You must always provide a response to the user first.
+CRITICAL RULES:
+- Do NOT end just because you provided information
+- Do NOT end just because the user acknowledged your response
+- ONLY end when the user explicitly says they don't need anything else
+- Always keep the conversation open for follow-up questions
 """
