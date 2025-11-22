@@ -1,33 +1,5 @@
 name: AISaaS
 services:
-  backend:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command: uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app/backend --reload-delay 0.25
-    ports:
-      - "8006:8000"
-    volumes:
-      - ./backend:/app/backend:rw
-      - ./.env:/app/.env:ro
-      - ./uploads:/app/uploads:rw
-    env_file:
-      - ./.env
-    depends_on:
-      - db
-      - chroma
-      - redis
-    user: "1000:1000"
-    environment:
-      - PYTHONUNBUFFERED=1
-      - PYTHONDONTWRITEBYTECODE=1
-      - PYTHONPATH=/app/backend
-      - UVICORN_RELOAD_DIRS=/app/backend
-      - WATCHFILES_FORCE_POLLING=true
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-    networks:
-      - aisaas
 
   db:
     image: postgres:17
@@ -57,9 +29,38 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "6378:6379"
     volumes:
       - aisaas_redis_data:/data
+    networks:
+      - aisaas
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app/backend --reload-delay 0.25
+    ports:
+      - "8006:8000"
+    volumes:
+      - ./backend:/app/backend:rw
+      - ./.env:/app/.env:ro
+      - ./uploads:/app/uploads:rw
+    env_file:
+      - ./.env
+    depends_on:
+      - db
+      - chroma
+      - redis
+    user: "1000:1000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONPATH=/app/backend
+      - UVICORN_RELOAD_DIRS=/app/backend
+      - WATCHFILES_FORCE_POLLING=true
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
     networks:
       - aisaas
 

@@ -160,33 +160,19 @@ async def get_customer_portal_session(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/subscription-status")
-async def get_subscription_status(
+@router.get("/account-status")
+async def get_account_status(
     current_user: CurrentUser,
-    credential_service: CredentialServiceDep,
 ):
-    stripe_customer_id = await credential_service.get_stripe_customer_id(
-        current_user.id
-    )
-    if not stripe_customer_id:
-        return {"status": "no_subscription"}
-
-    try:
-        subscriptions = stripe.Subscription.list(
-            customer=stripe_customer_id, status="active"
-        )
-        if subscriptions.data:
-            return {"status": "active", "subscription": subscriptions.data[0]}
-        else:
-            return {"status": "no_subscription"}
-    except stripe.InvalidRequestError as e:
-        if "No such customer" in str(e):
-            # If the customer doesn't exist in Stripe, they definitely don't have a subscription.
-            # We could optionally clear the invalid ID from the DB here, but returning status is sufficient.
-            return {"status": "no_subscription"}
-        raise HTTPException(status_code=400, detail=str(e))
-    except stripe.StripeError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    """
+    Returns the user's account status, including credit balance.
+    Since we use a credit-based system (Pay As You Go), we don't check for active subscriptions.
+    """
+    return {
+        "status": "active",
+        "credits": current_user.message_credits,
+        "plan_name": "Pay As You Go",
+    }
 
 
 @router.get("/message-packages")

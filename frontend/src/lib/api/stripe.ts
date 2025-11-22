@@ -33,12 +33,13 @@ export async function getCustomerPortalUrl(prevUrl: string): Promise<{ url: stri
   );
 }
 
-export async function getSubscriptionStatus(): Promise<{
+export async function getAccountStatus(): Promise<{
   status: string;
-  subscription?: StripeSubscription;
+  credits: number;
+  plan_name: string;
 }> {
-  return callApi<{ status: string; subscription?: StripeSubscription }>(
-    "/stripe/subscription-status"
+  return callApi<{ status: string; credits: number; plan_name: string }>(
+    "/stripe/account-status"
   );
 }
 

@@ -7,7 +7,7 @@ import {
   useCreateCheckoutSession,
   useGetCustomerPortalUrl,
   useMessagePackages,
-  useSubscriptionStatus,
+  useAccountStatus,
 } from '../../../hooks/useStripe';
 import { useAuthStatus } from '../../../hooks/useAuth';
 import { useStripeFeedback } from '../../../hooks/useStripeFeedback';
@@ -17,7 +17,7 @@ import { savePendingPurchase, getPendingPurchase, clearPendingPurchase } from '.
 
 export default function BillingPage() {
   useStripeFeedback()
-  const { data: subscriptionStatus, isLoading: isLoadingSubscription, isError: isErrorSubscription, error: errorSubscription } = useSubscriptionStatus();
+  const { data: accountStatus, isLoading: isLoadingAccount, isError: isErrorAccount, error: errorAccount } = useAccountStatus();
   const { data: messagePackages, isLoading: isLoadingPackages, isError: isErrorPackages, error: errorPackages } = useMessagePackages();
 
   const [processingPriceId, setProcessingPriceId] = useState<string | null>(null); // New state for per-button loading
@@ -30,16 +30,16 @@ export default function BillingPage() {
 
   const handlePurchasePackage = (priceId: string) => {
     if (!isAuthenticated) {
-        savePendingPurchase(priceId, window.location.pathname);
-        setIsAuthModalOpen(true);
-        return;
+      savePendingPurchase(priceId, window.location.pathname);
+      setIsAuthModalOpen(true);
+      return;
     }
 
     setProcessingPriceId(priceId); // Set the ID of the plan being processed
     createCheckoutSessionMutation.mutate(priceId, {
-        onSettled: () => { // Use onSettled to reset loading state regardless of success or error
-            setProcessingPriceId(null);
-        }
+      onSettled: () => { // Use onSettled to reset loading state regardless of success or error
+        setProcessingPriceId(null);
+      }
     });
   };
 
@@ -48,14 +48,14 @@ export default function BillingPage() {
   };
 
   useEffect(() => {
-      if (isAuthenticated) {
-          const pendingPurchase = getPendingPurchase();
-          if (pendingPurchase) {
-              clearPendingPurchase();
-              // Automatically trigger the purchase
-              handlePurchasePackage(pendingPurchase.priceId);
-          }
+    if (isAuthenticated) {
+      const pendingPurchase = getPendingPurchase();
+      if (pendingPurchase) {
+        clearPendingPurchase();
+        // Automatically trigger the purchase
+        handlePurchasePackage(pendingPurchase.priceId);
       }
+    }
   }, [isAuthenticated, handlePurchasePackage]); // Added handlePurchasePackage to dependencies
 
   return (
@@ -63,25 +63,23 @@ export default function BillingPage() {
       <div>
         <h2 className="text-2xl font-semibold mb-4">Billing & Subscriptions</h2>
 
-        {/* Subscription Status */}
+        {/* Account Status */}
         <div className="mb-8 p-4 border rounded-md bg-white dark:bg-gray-800 shadow">
-          <h3 className="text-xl font-bold mb-2">Subscription Status</h3>
-          {isLoadingSubscription && <p>Loading subscription status...</p>}
-          {isErrorSubscription && <p className="text-red-500">Error: {errorSubscription?.message}</p>}
-          {subscriptionStatus && (
+          <h3 className="text-xl font-bold mb-2">Account Status</h3>
+          {isLoadingAccount && <p>Loading account status...</p>}
+          {isErrorAccount && <p className="text-red-500">Error: {errorAccount?.message}</p>}
+          {accountStatus && (
             <div>
               <p>
-                Status:{" "}
-                {subscriptionStatus.status === "no_subscription"
-                  ? "Free"
-                  : subscriptionStatus.status}
+                Status: <span className="font-medium">{accountStatus.status}</span>
               </p>
-              {subscriptionStatus.subscription && (
-                <>
-                  <p>Plan: {(subscriptionStatus.subscription.items[0]?.price as { id: string })?.id || 'N/A'}</p>
-                  <p>Renews: {new Date(subscriptionStatus.subscription.current_period_end * 1000).toLocaleDateString()}</p>
-                </>
-              )}
+              <p>
+                Plan: <span className="font-medium">{accountStatus.plan_name}</span>
+              </p>
+              <p>
+                Credits: <span className="font-bold text-green-600">{accountStatus.credits}</span>
+              </p>
+
               <button
                 onClick={handleManageBilling}
                 className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"

@@ -31,3 +31,13 @@ dependencies = [
     "redis[asyncio]>=5.0.1",
     "aiohttp>=3.13.2",
 ]
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.ty.rules]
+unresolved-attribute = "error"

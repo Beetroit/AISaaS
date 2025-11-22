@@ -3,7 +3,7 @@ import {
   createStripeCustomer,
   createStripeSubscription,
   getCustomerPortalUrl,
-  getSubscriptionStatus,
+  getAccountStatus,
   getMessagePackages,
   createCheckoutSession,
 } from "../lib/api/stripe";
@@ -16,10 +16,10 @@ import {
 
 // --- Queries ---
 
-export function useSubscriptionStatus() {
-  return useQuery<{ status: string; subscription?: StripeSubscription }, Error>({
-    queryKey: ["subscriptionStatus"],
-    queryFn: getSubscriptionStatus,
+export function useAccountStatus() {
+  return useQuery<{ status: string; credits: number; plan_name: string }, Error>({
+    queryKey: ["accountStatus"],
+    queryFn: getAccountStatus,
   });
 }
 
@@ -38,7 +38,7 @@ export function useCreateStripeCustomer() {
     mutationFn: (customerData: StripeCustomerCreate) =>
       createStripeCustomer(customerData),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["subscriptionStatus"] });
+      queryClient.invalidateQueries({ queryKey: ["accountStatus"] });
     },
   });
 }
