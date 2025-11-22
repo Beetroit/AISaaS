@@ -142,7 +142,7 @@ export default function EditAppointmentModal({ isOpen, onClose, appointment }: E
               <option value="">Select a Lead</option>
               {leads?.map((lead) => (
                 <option key={lead.id} value={lead.id}>
-                  {lead.name || lead.email}
+                  {(lead.contact_info?.name as string) || (lead.contact_info?.email as string) || "Unknown Lead"}
                 </option>
               ))}
             </select>

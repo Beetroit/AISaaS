@@ -422,12 +422,12 @@ async def lead_intake_webhook(
 
 
 @router.post("/stripe")
-@router.get("/stripe")
 async def stripe_webhook(
     request: Request,
     stripe_service: StripeServiceDep,
     db: DBSession,
 ):
+    logger.info(f"Stripe webhook received. Method: {request.method}")
     stripe_webhook_secret = settings.stripe_webhook_secret
 
     if not stripe_webhook_secret:

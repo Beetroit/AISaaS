@@ -70,6 +70,43 @@ async def create_stripe_subscription(
             "subscription_id": subscription.id,
             "client_secret": subscription.latest_invoice.payment_intent.client_secret,  # type: ignore
         }
+    except stripe.InvalidRequestError as e:
+        if "No such customer" in str(e):
+            logger.warning(
+                f"Stripe customer {stripe_customer_id} not found. Recreating..."
+            )
+            try:
+                customer = stripe.Customer.create(
+                    email=current_user.email,
+                    name=current_user.email,
+                    description=f"Customer for {current_user.email}",
+                )
+                await credential_service.update_credential(
+                    current_user.id, "stripe_customer_id", {"customer_id": customer.id}
+                )
+                subscription = stripe.Subscription.create(
+                    customer=customer.id,
+                    items=[{"price": subscription_data.price_id}],
+                    payment_behavior="default_incomplete",
+                    expand=["latest_invoice.payment_intent"],
+                )
+                if not subscription.latest_invoice:
+                    raise HTTPException(
+                        status_code=500,
+                        detail="Stripe subscription created but no latest_invoice found.",
+                    )
+                if not subscription.latest_invoice.payment_intent:  # type: ignore
+                    raise HTTPException(
+                        status_code=500,
+                        detail="Stripe subscription created but no payment_intent found.",
+                    )
+                return {
+                    "subscription_id": subscription.id,
+                    "client_secret": subscription.latest_invoice.payment_intent.client_secret,  # type: ignore
+                }
+            except stripe.StripeError as retry_e:
+                raise HTTPException(status_code=400, detail=str(retry_e))
+        raise HTTPException(status_code=400, detail=str(e))
     except stripe.StripeError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -95,6 +132,30 @@ async def get_customer_portal_session(
             return_url=_ensure_https_scheme(prev_url + "?stripe_status=success"),
         )
         return {"url": session.url}
+    except stripe.InvalidRequestError as e:
+        if "No such customer" in str(e):
+            logger.warning(
+                f"Stripe customer {stripe_customer_id} not found. Recreating..."
+            )
+            try:
+                customer = stripe.Customer.create(
+                    email=current_user.email,
+                    name=current_user.email,
+                    description=f"Customer for {current_user.email}",
+                )
+                await credential_service.update_credential(
+                    current_user.id, "stripe_customer_id", {"customer_id": customer.id}
+                )
+                session = stripe.billing_portal.Session.create(
+                    customer=customer.id,
+                    return_url=_ensure_https_scheme(
+                        prev_url + "?stripe_status=success"
+                    ),
+                )
+                return {"url": session.url}
+            except stripe.StripeError as retry_e:
+                raise HTTPException(status_code=400, detail=str(retry_e))
+        raise HTTPException(status_code=400, detail=str(e))
     except stripe.StripeError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -118,6 +179,12 @@ async def get_subscription_status(
             return {"status": "active", "subscription": subscriptions.data[0]}
         else:
             return {"status": "no_subscription"}
+    except stripe.InvalidRequestError as e:
+        if "No such customer" in str(e):
+            # If the customer doesn't exist in Stripe, they definitely don't have a subscription.
+            # We could optionally clear the invalid ID from the DB here, but returning status is sufficient.
+            return {"status": "no_subscription"}
+        raise HTTPException(status_code=400, detail=str(e))
     except stripe.StripeError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -191,6 +258,41 @@ async def create_checkout_session(
             cancel_url=_ensure_https_scheme(prev_url + "?stripe_status=failed"),
         )
         return {"url": checkout_session.url}
+    except stripe.InvalidRequestError as e:
+        if "No such customer" in str(e):
+            logger.warning(
+                f"Stripe customer {stripe_customer_id} not found. Recreating..."
+            )
+            try:
+                customer = stripe.Customer.create(
+                    email=current_user.email,
+                    name=current_user.email,
+                    description=f"Customer for {current_user.email}",
+                )
+                # Update the credential in the database
+                await credential_service.update_credential(
+                    current_user.id, "stripe_customer_id", {"customer_id": customer.id}
+                )
+                # Retry creating the checkout session with the new customer ID
+                checkout_session = stripe.checkout.Session.create(
+                    customer=customer.id,
+                    client_reference_id=current_user.id,
+                    line_items=[
+                        {
+                            "price": price_id,
+                            "quantity": 1,
+                        }
+                    ],
+                    mode="payment",
+                    success_url=_ensure_https_scheme(
+                        prev_url + "?stripe_status=success"
+                    ),
+                    cancel_url=_ensure_https_scheme(prev_url + "?stripe_status=failed"),
+                )
+                return {"url": checkout_session.url}
+            except stripe.StripeError as retry_e:
+                raise HTTPException(status_code=400, detail=str(retry_e))
+        raise HTTPException(status_code=400, detail=str(e))
     except stripe.StripeError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
