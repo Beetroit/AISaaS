@@ -10,7 +10,8 @@ import ReactFlow, {
   Controls,
   OnConnect,
   OnEdgesChange,
-  OnNodesChange
+  OnNodesChange,
+  NodeProps
 } from "reactflow";
 import "reactflow/dist/style.css";
 
@@ -33,7 +34,7 @@ export const WorkflowEditor = ({ initialSchema, onSchemaChange }: WorkflowEditor
   const [edges, setEdges] = useState<WorkflowEdge[]>(initialSchema?.edges || []);
 
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
-  const [editingNodeData, setEditingNodeData] = useState<any | null>(null);
+  const [editingNodeData, setEditingNodeData] = useState<Record<string, unknown> | null>(null);
   const [editingNodeTypeSchema, setEditingNodeTypeSchema] = useState<NodeType | null>(null);
 
   const onNodesChange: OnNodesChange = useCallback(
@@ -85,7 +86,7 @@ export const WorkflowEditor = ({ initialSchema, onSchemaChange }: WorkflowEditor
     []
   );
 
-  const handleNodeDataSave = useCallback((nodeId: string, newData: any) => {
+  const handleNodeDataSave = useCallback((nodeId: string, newData: Record<string, unknown>) => {
     setNodes((nds) =>
       nds.map((node) =>
         node.id === nodeId
@@ -102,7 +103,7 @@ export const WorkflowEditor = ({ initialSchema, onSchemaChange }: WorkflowEditor
 
   const handleNodeClick = useCallback((id: string, data: NodeType) => {
     setEditingNodeId(id);
-    setEditingNodeData(data); // Use data directly from the prop
+    setEditingNodeData(data as unknown as Record<string, unknown>); // Use data directly from the prop
 
     // Try to find the latest schema for this node type
     const freshSchema = availableNodeTypes?.find((nt) => nt.type === data.type);
@@ -117,7 +118,7 @@ export const WorkflowEditor = ({ initialSchema, onSchemaChange }: WorkflowEditor
   }, []);
 
   const memoizedNodeTypes = useMemo(() => ({
-    custom: (props: any) => <CustomNode {...props} onClick={handleNodeClick} onDelete={handleNodeDelete} />,
+    custom: (props: NodeProps) => <CustomNode {...props} onClick={handleNodeClick} onDelete={handleNodeDelete} />,
   }), [handleNodeClick, handleNodeDelete]);
 
   // Notify parent of schema changes
@@ -145,7 +146,7 @@ export const WorkflowEditor = ({ initialSchema, onSchemaChange }: WorkflowEditor
       {editingNodeId && editingNodeTypeSchema && (
         <NodeConfigurationModal
           nodeId={editingNodeId}
-          nodeData={editingNodeData}
+          nodeData={editingNodeData || {}}
           nodeTypeSchema={editingNodeTypeSchema}
           onSave={handleNodeDataSave}
           onClose={() => setEditingNodeId(null)}

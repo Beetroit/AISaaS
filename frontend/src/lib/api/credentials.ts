@@ -60,9 +60,10 @@ export async function getTwilioCredentials(): Promise<AppCredential | null> {
       method: "GET",
     });
     return response;
-  } catch (error: any) {
+  } catch (error: unknown) {
     // If no credentials found, return null
-    if (error.status === 404 || error.message?.includes("not found")) {
+    const err = error as { status?: number; message?: string };
+    if (err.status === 404 || err.message?.includes("not found")) {
       return null;
     }
     throw error;
@@ -74,9 +75,10 @@ export async function deleteTwilioCredentials(): Promise<void> {
     await callApi<void>("/credentials/twilio", {
       method: "DELETE",
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     // If credentials not found, ignore the error
-    if (error.status === 404 || error.message?.includes("not found")) {
+    const err = error as { status?: number; message?: string };
+    if (err.status === 404 || err.message?.includes("not found")) {
       return;
     }
     throw error;

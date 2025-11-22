@@ -11,6 +11,7 @@ import {
   Play,
   Plug,
   Settings,
+  Shield,
   Users,
   Workflow
 } from "lucide-react";
@@ -151,6 +152,17 @@ export default function DashboardShell({
                 Integrations
               </Link>
             </li>
+            {user?.is_admin && (
+              <li className="mb-2 mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <Link
+                  href="/admin"
+                  className="flex items-center p-2 rounded-md text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors duration-200 font-medium"
+                >
+                  <Shield className="mr-3 h-5 w-5" />
+                  Admin Panel
+                </Link>
+              </li>
+            )}
           </ul>
         </nav>
         <div className="mt-auto">

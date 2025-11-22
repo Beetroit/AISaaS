@@ -14,6 +14,7 @@ from backend.app.dependencies import CurrentUser
 from backend.app.schemas import user as schemas_user
 
 from .routers import (
+    admin,
     agents,
     appointments,
     auth,
@@ -90,6 +91,7 @@ async def generic_exception_handler(request: Request, exc: Exception) -> JSONRes
 
 
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
+app.include_router(admin.router)
 app.include_router(documents.router, prefix="/documents", tags=["documents"])
 app.include_router(webhooks.router)
 app.include_router(stripe_api.router)
@@ -110,6 +112,7 @@ async def read_users_me(current_user: CurrentUser):
         id=current_user.id,
         email=current_user.email,
         is_active=current_user.is_active,
+        is_admin=current_user.is_admin,
         message_credits=current_user.message_credits,
         agent_ids=agent_ids,
     )

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { FormEvent, useRef, useState, useEffect } from "react";
+import { FormEvent, useRef, useState } from "react";
 import { useLogin, useRegister } from "../hooks/useAuth";
 import { useCreateCheckoutSession } from "../hooks/useStripe"; // Import useCreateCheckoutSession
 import { getPendingPurchase, clearPendingPurchase } from "../lib/utils/storage"; // Import storage utilities

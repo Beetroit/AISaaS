@@ -134,7 +134,7 @@ class ReportService:
         session = (await self.db.execute(session_stmt)).scalar_one_or_none()
 
         if not session:
-            return None
+            return []
 
         # Get messages
         messages_stmt = (

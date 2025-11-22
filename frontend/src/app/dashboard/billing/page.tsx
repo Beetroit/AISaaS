@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback } from 'react';
+
 import AuthModal from '../../../components/AuthModal';
 import {
   useCreateCheckoutSession,
@@ -23,12 +23,11 @@ export default function BillingPage() {
   const [processingPriceId, setProcessingPriceId] = useState<string | null>(null); // New state for per-button loading
   const { data: isAuthenticated } = useAuthStatus();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const router = useRouter();
 
   const createCheckoutSessionMutation = useCreateCheckoutSession();
   const getCustomerPortalUrlMutation = useGetCustomerPortalUrl();
 
-  const handlePurchasePackage = (priceId: string) => {
+  const handlePurchasePackage = useCallback((priceId: string) => {
     if (!isAuthenticated) {
       savePendingPurchase(priceId, window.location.pathname);
       setIsAuthModalOpen(true);
@@ -41,7 +40,7 @@ export default function BillingPage() {
         setProcessingPriceId(null);
       }
     });
-  };
+  }, [isAuthenticated, createCheckoutSessionMutation]);
 
   const handleManageBilling = () => {
     getCustomerPortalUrlMutation.mutate();
@@ -56,7 +55,7 @@ export default function BillingPage() {
         handlePurchasePackage(pendingPurchase.priceId);
       }
     }
-  }, [isAuthenticated, handlePurchasePackage]); // Added handlePurchasePackage to dependencies
+  }, [isAuthenticated, handlePurchasePackage]);
 
   return (
     <>

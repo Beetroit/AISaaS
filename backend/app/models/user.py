@@ -39,6 +39,12 @@ class User(Base):
     )
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_admin: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false"
+    )
+    is_super_admin: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false"
+    )
     message_credits: Mapped[int] = mapped_column(
         Integer, default=0, server_default="0", nullable=False
     )
@@ -73,6 +79,7 @@ class User(Base):
             "email": self.email,
             "stripe_customer_id": self.stripe_customer_id,
             "is_active": self.is_active,
+            "is_admin": self.is_admin,
             "message_credits": self.message_credits,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,

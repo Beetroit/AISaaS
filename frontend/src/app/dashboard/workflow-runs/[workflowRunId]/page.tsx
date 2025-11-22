@@ -15,23 +15,13 @@ import { AppCredential } from "@/types/credential";
 import { WorkflowRun, WorkflowRunUpdate } from "@/types/workflow";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 
 export default function WorkflowRunEditorPage() {
-  const router = useRouter();
   const params = useParams();
-  const queryClient = useQueryClient();
   const workflowRunId = params.workflowRunId as string;
-
-  const [selectedCredentialId, setSelectedCredentialId] = useState<
-    string | undefined
-  >(undefined);
-  const [selectedStatus, setSelectedStatus] = useState<string | undefined>(
-    undefined
-  );
-  const [initialData, setInitialData] = useState<string>("");
 
   const { data: workflowRun, isLoading: isLoadingWorkflowRun } = useQuery<
     WorkflowRun
@@ -47,13 +37,45 @@ export default function WorkflowRunEditorPage() {
     queryFn: () => getCredentials(),
   });
 
-  useEffect(() => {
-    if (workflowRun) {
-      setSelectedCredentialId(workflowRun.credential_id);
-      setSelectedStatus(workflowRun.status);
-      setInitialData(JSON.stringify(workflowRun.initial_data, null, 2));
-    }
-  }, [workflowRun]);
+  if (isLoadingWorkflowRun) {
+    return <div>Loading...</div>;
+  }
+
+  if (!workflowRun) {
+    return <div>Workflow run not found.</div>;
+  }
+
+  return (
+    <WorkflowRunForm
+      workflowRun={workflowRun}
+      credentials={credentials}
+      isLoadingCredentials={isLoadingCredentials}
+    />
+  );
+}
+
+function WorkflowRunForm({
+  workflowRun,
+  credentials,
+  isLoadingCredentials,
+}: {
+  workflowRun: WorkflowRun;
+  credentials: AppCredential[] | undefined;
+  isLoadingCredentials: boolean;
+}) {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const workflowRunId = workflowRun.id;
+
+  const [selectedCredentialId, setSelectedCredentialId] = useState<
+    string | undefined
+  >(workflowRun.credential_id);
+  const [selectedStatus, setSelectedStatus] = useState<string | undefined>(
+    workflowRun.status
+  );
+  const [initialData, setInitialData] = useState<string>(
+    JSON.stringify(workflowRun.initial_data, null, 2)
+  );
 
   const updateWorkflowRunMutation = useMutation({
     mutationFn: (updatedRun: WorkflowRunUpdate) =>
@@ -92,14 +114,6 @@ export default function WorkflowRunEditorPage() {
 
     updateWorkflowRunMutation.mutate(updatedRun);
   };
-
-  if (isLoadingWorkflowRun) {
-    return <div>Loading...</div>;
-  }
-
-  if (!workflowRun) {
-    return <div>Workflow run not found.</div>;
-  }
 
   return (
     <form

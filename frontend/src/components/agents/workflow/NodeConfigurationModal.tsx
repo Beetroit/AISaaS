@@ -18,9 +18,9 @@ import { LeadExtractionConfig } from "./nodes/LeadExtractionConfig";
 
 interface NodeConfigurationModalProps {
   nodeId: string;
-  nodeData: any;
+  nodeData: Record<string, unknown>;
   nodeTypeSchema: NodeType;
-  onSave: (nodeId: string, newData: any) => void;
+  onSave: (nodeId: string, newData: Record<string, unknown>) => void;
   onClose: () => void;
 }
 
@@ -31,7 +31,7 @@ export function NodeConfigurationModal({
   onSave,
   onClose,
 }: NodeConfigurationModalProps) {
-  const [formData, setFormData] = useState<any>(nodeData);
+  const [formData, setFormData] = useState<Record<string, unknown>>(nodeData);
 
   useEffect(() => {
     setFormData(nodeData);
@@ -39,7 +39,7 @@ export function NodeConfigurationModal({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData((prev: any) => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = () => {
@@ -66,7 +66,7 @@ export function NodeConfigurationModal({
                   <Input
                     id={key}
                     name={key}
-                    value={formData[key] || ""}
+                    value={(formData[key] as string) || ""}
                     onChange={handleInputChange}
                     className="col-span-3"
                   />
@@ -76,7 +76,7 @@ export function NodeConfigurationModal({
                     id={key}
                     name={key}
                     type="number"
-                    value={formData[key] || 0}
+                    value={(formData[key] as number) || 0}
                     onChange={handleInputChange}
                     className="col-span-3"
                   />
@@ -87,9 +87,9 @@ export function NodeConfigurationModal({
                 {nodeTypeSchema.type === "lead_extraction" && key === "fields" ? (
                   <div className="col-span-4">
                     <LeadExtractionConfig
-                      fields={formData[key] || []}
+                      fields={(formData[key] as any[]) || []}
                       onChange={(newFields) =>
-                        setFormData((prev: any) => ({ ...prev, [key]: newFields }))
+                        setFormData((prev) => ({ ...prev, [key]: newFields }))
                       }
                     />
                   </div>
@@ -103,7 +103,7 @@ export function NodeConfigurationModal({
                         value={JSON.stringify(formData[key] || {}, null, 2)}
                         onChange={(e) => {
                           try {
-                            setFormData((prev: any) => ({
+                            setFormData((prev) => ({
                               ...prev,
                               [key]: JSON.parse(e.target.value),
                             }));

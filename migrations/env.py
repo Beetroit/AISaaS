@@ -21,6 +21,8 @@ from backend.app.models.credential import Credential  # noqa: F401
 from backend.app.models.workflow_run import WorkflowRun  # noqa: F401
 from backend.app.models.agent_workflow import AgentWorkflow  # noqa: F401
 from backend.app.models.pricing_plan import PricingPlan  # noqa: F401
+from backend.app.models.admin_log import AdminActivityLog  # noqa: F401
+from backend.app.models.transaction import Transaction  # noqa: F401
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

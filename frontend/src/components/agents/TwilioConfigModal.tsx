@@ -16,13 +16,13 @@ import { TwilioCredentials } from "../../types/agent";
 interface TwilioConfigModalProps {
   isOpen: boolean;
   onClose: () => void;
-  agentId: string;
+  onSave: () => void; // Added onSave to props
 }
 
 export default function TwilioConfigModal({
   isOpen,
   onClose,
-  agentId: _agentId,
+  onSave, // Changed destructuring from agentId:_agentId to onSave
 }: TwilioConfigModalProps) {
   const [sid, setSid] = useState("");
   const [authToken, setAuthToken] = useState("");

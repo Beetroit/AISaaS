@@ -264,6 +264,22 @@ WorkflowRunCRUDDep = Annotated[WorkflowRunCRUD, Depends(get_workflow_run_crud)]
 PricingPlanCRUDDep = Annotated[PricingPlanCRUD, Depends(get_pricing_plan_crud)]
 CredentialServiceDep = Annotated[CredentialService, Depends(get_credential_service)]
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+async def verify_admin(current_user: CurrentUser) -> User:
+    """Verify that the current user has admin privileges."""
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required. You do not have permission to access this resource.",
+        )
+    return current_user
+
+
+AdminUser = Annotated[User, Depends(verify_admin)]
+
+
+# Database Dependency
 DBSession = Annotated[AsyncSession, Depends(get_db)]
 AgentWorkflowServiceDep = Annotated[
     AgentWorkflowService, Depends(get_agent_workflow_service)

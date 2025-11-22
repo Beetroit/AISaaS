@@ -26,8 +26,9 @@ export function LeadExtractionConfig({ fields = [], onChange }: LeadExtractionCo
         onChange(newFields);
     };
 
-    const handleFieldChange = (index: number, key: keyof LeadField, value: any) => {
+    const handleFieldChange = (index: number, key: keyof LeadField, value: string | boolean) => {
         const newFields = [...fields];
+        // Use type assertion or a more specific update logic if needed, but for now this is safe enough with the union type
         newFields[index] = { ...newFields[index], [key]: value };
         onChange(newFields);
     };
@@ -44,7 +45,7 @@ export function LeadExtractionConfig({ fields = [], onChange }: LeadExtractionCo
 
             {fields.length === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-4 border border-dashed rounded-md">
-                    No fields configured. Click "Add Field" to start.
+                    No fields configured. Click &quot;Add Field&quot; to start.
                 </p>
             )}
 

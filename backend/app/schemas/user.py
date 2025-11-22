@@ -21,6 +21,7 @@ class UserResponse(BaseModel):
     id: str
     email: EmailStr
     is_active: bool
+    is_admin: bool
     message_credits: int
     agent_ids: List[str] = []
 

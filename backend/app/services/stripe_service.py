@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.config import logger, settings
 from backend.app.crud.pricing_plan_crud import PricingPlanCRUD
 from backend.app.crud.user_crud import UserCRUD
+from backend.app.models.transaction import Transaction
 
 
 class StripeService:
@@ -86,6 +87,26 @@ class StripeService:
             )
         else:
             logger.warning(f"Pricing plan {pricing_plan.id} has no credits to add.")
+
+        # Create transaction record
+        transaction = Transaction(
+            user_id=user.id,
+            amount=session.amount_total / 100.0 if session.amount_total else 0.0,
+            currency=session.currency or "usd",
+            status="completed",
+            stripe_payment_id=session.payment_intent or session.id,
+            payment_metadata={
+                "pricing_plan_id": pricing_plan.id,
+                "pricing_plan_name": pricing_plan.name,
+                "credits": pricing_plan.credits,
+                "session_id": session.id,
+            },
+        )
+        db.add(transaction)
+        await db.flush()
+        logger.info(
+            f"Transaction recorded for user {user.id}: {transaction.amount} {transaction.currency}"
+        )
 
         # TODO: Handle subscription status updates if session.mode == "subscription"
         # This would involve updating the user's subscription status in the database

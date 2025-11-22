@@ -7,10 +7,10 @@ import {
   getMessagePackages,
   createCheckoutSession,
 } from "../lib/api/stripe";
+
 import {
   StripeCustomerCreate,
   StripeSubscriptionCreate,
-  StripeSubscription,
   MessagePackage,
 } from "../types/stripe";
 
