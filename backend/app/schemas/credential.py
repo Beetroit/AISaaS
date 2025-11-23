@@ -32,7 +32,10 @@ class TwilioCredentialCreate(BaseModel):
 
     twilio_account_sid: str
     twilio_auth_token: str
-    twilio_phone_number: str
+    twilio_account_sid: str
+    twilio_auth_token: str
+    identifier: str
+    channel: str = "whatsapp"
 
 
 class TwilioCredentialResponse(BaseModel):
@@ -40,7 +43,8 @@ class TwilioCredentialResponse(BaseModel):
 
     id: str
     credential_type: str
-    phone_number: str | None
+    identifier: str | None
+    channel: str = "whatsapp"
     has_account_sid: bool
     has_auth_token: bool
     created_at: datetime

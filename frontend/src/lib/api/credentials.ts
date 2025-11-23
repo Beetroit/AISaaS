@@ -47,7 +47,8 @@ export async function saveTwilioCredentials(
     body: {
       twilio_account_sid: credentials.twilio_account_sid,
       twilio_auth_token: credentials.twilio_auth_token,
-      twilio_phone_number: credentials.twilio_phone_number,
+      identifier: credentials.identifier,
+      channel: credentials.channel,
     },
   });
 }

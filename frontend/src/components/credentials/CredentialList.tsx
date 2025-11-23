@@ -49,6 +49,8 @@ export function CredentialList() {
           <TableRow>
             <TableHead>ID</TableHead>
             <TableHead>Type</TableHead>
+            <TableHead>Channel</TableHead>
+            <TableHead>Identifier</TableHead>
             <TableHead>Concurrent Use</TableHead>
             <TableHead>Created At</TableHead>
             <TableHead>Actions</TableHead>
@@ -59,6 +61,10 @@ export function CredentialList() {
             <TableRow key={credential.id}>
               <TableCell className="font-medium">{credential.id}</TableCell>
               <TableCell>{credential.credential_type}</TableCell>
+              <TableCell>
+                <Badge variant="outline">{credential.channel || "whatsapp"}</Badge>
+              </TableCell>
+              <TableCell>{credential.identifier || "N/A"}</TableCell>
               <TableCell>
                 {credential.allow_concurrent_use ? (
                   <Badge variant="outline">Yes</Badge>

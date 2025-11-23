@@ -26,7 +26,8 @@ export default function TwilioConfigModal({
 }: TwilioConfigModalProps) {
   const [sid, setSid] = useState("");
   const [authToken, setAuthToken] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const [identifier, setIdentifier] = useState("");
+  const [channel, setChannel] = useState<"whatsapp" | "facebook" | "instagram">("whatsapp");
 
   const saveTwilioCredentialsMutation = useSaveTwilioCredentials();
 
@@ -35,7 +36,8 @@ export default function TwilioConfigModal({
     const credentials: TwilioCredentials = {
       twilio_account_sid: sid,
       twilio_auth_token: authToken,
-      twilio_phone_number: phoneNumber,
+      identifier: identifier,
+      channel: channel,
     };
 
     saveTwilioCredentialsMutation.mutate(
@@ -45,7 +47,8 @@ export default function TwilioConfigModal({
           onClose();
           setSid("");
           setAuthToken("");
-          setPhoneNumber("");
+          setIdentifier("");
+          setChannel("whatsapp");
           // TODO: Show success feedback
         },
         onError: (error: Error) => { // Explicitly type error
@@ -56,16 +59,47 @@ export default function TwilioConfigModal({
     );
   };
 
+  const getIdentifierLabel = () => {
+    switch (channel) {
+      case "whatsapp":
+        return "Twilio Phone Number (e.g., +1234567890)";
+      case "facebook":
+        return "Facebook Page ID";
+      case "instagram":
+        return "Instagram User ID / Handle";
+      default:
+        return "Identifier";
+    }
+  };
+
   return (
     <AlertDialog open={isOpen} onOpenChange={onClose}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Configure Twilio Credentials</AlertDialogTitle>
           <AlertDialogDescription>
-            Enter your Twilio Account SID, Auth Token, and Phone Number for this agent.
+            Enter your Twilio Account SID, Auth Token, and Identifier for this agent.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
+          <div>
+            <label
+              htmlFor="channel"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+            >
+              Channel
+            </label>
+            <select
+              id="channel"
+              value={channel}
+              onChange={(e) => setChannel(e.target.value as "whatsapp" | "facebook" | "instagram")}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+            >
+              <option value="whatsapp">WhatsApp</option>
+              <option value="facebook">Facebook Messenger</option>
+              <option value="instagram">Instagram</option>
+            </select>
+          </div>
           <div>
             <label
               htmlFor="sid"
@@ -100,16 +134,16 @@ export default function TwilioConfigModal({
           </div>
           <div>
             <label
-              htmlFor="phoneNumber"
+              htmlFor="identifier"
               className="block text-sm font-medium text-gray-700 dark:text-gray-300"
             >
-              Twilio Phone Number (e.g., +1234567890)
+              {getIdentifierLabel()}
             </label>
             <input
               type="text"
-              id="phoneNumber"
-              value={phoneNumber}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPhoneNumber(e.target.value)}
+              id="identifier"
+              value={identifier}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setIdentifier(e.target.value)}
               required
               className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             />

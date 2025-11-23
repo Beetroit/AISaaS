@@ -4,6 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { saveTwilioCredentials } from "@/lib/api/credentials";
 import { TwilioCredentials } from "@/types/agent";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -18,7 +25,8 @@ export function TwilioCredentialForm({ onClose }: TwilioCredentialFormProps) {
   const queryClient = useQueryClient();
   const [accountSid, setAccountSid] = useState("");
   const [authToken, setAuthToken] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const [identifier, setIdentifier] = useState("");
+  const [channel, setChannel] = useState<"whatsapp" | "facebook" | "instagram">("whatsapp");
   const [allowConcurrentUse, setAllowConcurrentUse] = useState(false);
 
   const saveCredentialMutation = useMutation({
@@ -39,14 +47,44 @@ export function TwilioCredentialForm({ onClose }: TwilioCredentialFormProps) {
     const credentials: TwilioCredentials = {
       twilio_account_sid: accountSid,
       twilio_auth_token: authToken,
-      twilio_phone_number: phoneNumber,
+      identifier: identifier,
+      channel: channel,
     };
 
     saveCredentialMutation.mutate(credentials);
   };
 
+  const getIdentifierLabel = () => {
+    switch (channel) {
+      case "whatsapp":
+        return "Phone Number (e.g., +1234567890)";
+      case "facebook":
+        return "Facebook Page ID";
+      case "instagram":
+        return "Instagram User ID / Handle";
+      default:
+        return "Identifier";
+    }
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <Label htmlFor="channel">Channel</Label>
+        <Select
+          value={channel}
+          onValueChange={(value) => setChannel(value as "whatsapp" | "facebook" | "instagram")}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select Channel" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="whatsapp">WhatsApp</SelectItem>
+            <SelectItem value="facebook">Facebook Messenger</SelectItem>
+            <SelectItem value="instagram">Instagram</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
       <div>
         <Label htmlFor="accountSid">Account SID</Label>
         <Input
@@ -66,11 +104,11 @@ export function TwilioCredentialForm({ onClose }: TwilioCredentialFormProps) {
         />
       </div>
       <div>
-        <Label htmlFor="phoneNumber">Phone Number (e.g., +1234567890)</Label>
+        <Label htmlFor="identifier">{getIdentifierLabel()}</Label>
         <Input
-          id="phoneNumber"
-          value={phoneNumber}
-          onChange={(e) => setPhoneNumber(e.target.value)}
+          id="identifier"
+          value={identifier}
+          onChange={(e) => setIdentifier(e.target.value)}
           required
         />
       </div>

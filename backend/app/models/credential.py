@@ -21,21 +21,25 @@ class Credential(Base):
     )
     user_id: Mapped[str] = mapped_column(String(50), ForeignKey("users.id"), index=True)
     credential_type: Mapped[str] = mapped_column(String(100), index=True)
-    phone_number: Mapped[str | None] = mapped_column(
+    identifier: Mapped[str | None] = mapped_column(
         String(50), index=True, unique=True, nullable=True
+    )
+    channel: Mapped[str] = mapped_column(
+        String(20), default="whatsapp", server_default="whatsapp"
     )
     credentials_data: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     user: Mapped["User"] = relationship("User", back_populates="credentials")
 
     def __repr__(self) -> str:
-        return f"<Credential(id={self.id}, user_id={self.user_id}, type={self.credential_type})>"
+        return f"<Credential(id={self.id}, user_id={self.user_id}, type={self.credential_type}, channel={self.channel})>"
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "id": self.id,
             "user_id": self.user_id,
             "credential_type": self.credential_type,
-            "phone_number": self.phone_number,
+            "identifier": self.identifier,
+            "channel": self.channel,
             "credentials_data": self.credentials_data,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,

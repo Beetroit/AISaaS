@@ -30,5 +30,6 @@ export type AgentWorkflowSchema = WorkflowSchema;
 export interface TwilioCredentials extends Record<string, unknown> {
     twilio_account_sid: string;
     twilio_auth_token: string;
-    twilio_phone_number: string;
+    identifier: string;
+    channel: "whatsapp" | "facebook" | "instagram";
 }

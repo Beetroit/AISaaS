@@ -30,7 +30,8 @@ import {
 const formSchema = z.object({
   account_sid: z.string().min(1, "Account SID is required"),
   auth_token: z.string().min(1, "Auth Token is required"),
-  whatsapp_number: z.string().min(1, "WhatsApp Number is required"),
+  identifier: z.string().min(1, "Identifier is required"),
+  channel: z.enum(["whatsapp", "facebook", "instagram"]),
 });
 
 export function TwilioConfigForm() {
@@ -44,7 +45,8 @@ export function TwilioConfigForm() {
     defaultValues: {
       account_sid: "",
       auth_token: "",
-      whatsapp_number: "",
+      identifier: "",
+      channel: "whatsapp",
     },
   });
 
@@ -60,7 +62,8 @@ export function TwilioConfigForm() {
       form.reset({
         account_sid: twilioData.twilio_account_sid,
         auth_token: twilioData.twilio_auth_token,
-        whatsapp_number: twilioData.twilio_phone_number,
+        identifier: twilioData.identifier || (twilioData.twilio_phone_number as string), // Fallback for old data
+        channel: (twilioData.channel as "whatsapp" | "facebook" | "instagram") || "whatsapp",
       });
     }
   }, [existingCredentials, form]);
@@ -70,7 +73,8 @@ export function TwilioConfigForm() {
       const twilioCreds: TwilioCredentials = {
         twilio_account_sid: data.account_sid,
         twilio_auth_token: data.auth_token,
-        twilio_phone_number: data.whatsapp_number,
+        identifier: data.identifier,
+        channel: data.channel,
       };
       return saveTwilioCredentials(twilioCreds);
     },
@@ -99,7 +103,8 @@ export function TwilioConfigForm() {
       form.reset({
         account_sid: "",
         auth_token: "",
-        whatsapp_number: "",
+        identifier: "",
+        channel: "whatsapp",
       });
     },
     onError: (error: unknown) => { // Changed from any
@@ -117,6 +122,21 @@ export function TwilioConfigForm() {
     saveMutation.mutate(values);
   }
 
+  const channelValue = form.watch("channel");
+
+  const getIdentifierLabel = () => {
+    switch (channelValue) {
+      case "whatsapp":
+        return "Twilio Phone Number (e.g., +1234567890)";
+      case "facebook":
+        return "Facebook Page ID";
+      case "instagram":
+        return "Instagram User ID / Handle";
+      default:
+        return "Identifier";
+    }
+  };
+
   if (isLoadingCredentials) {
     return <div>Loading Twilio configuration...</div>;
   }
@@ -124,6 +144,26 @@ export function TwilioConfigForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <FormField
+          control={form.control}
+          name="channel"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Channel</FormLabel>
+              <FormControl>
+                <select
+                  {...field}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                >
+                  <option value="whatsapp">WhatsApp</option>
+                  <option value="facebook">Facebook Messenger</option>
+                  <option value="instagram">Instagram</option>
+                </select>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         <FormField
           control={form.control}
           name="account_sid"
@@ -152,12 +192,12 @@ export function TwilioConfigForm() {
         />
         <FormField
           control={form.control}
-          name="whatsapp_number"
+          name="identifier"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>WhatsApp Number (e.g., +1234567890)</FormLabel>
+              <FormLabel>{getIdentifierLabel()}</FormLabel>
               <FormControl>
-                <Input placeholder="+1234567890" {...field} />
+                <Input placeholder="Identifier" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

@@ -5,15 +5,16 @@ export interface AppCredentialBase {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface CredentialCreate extends AppCredentialBase {}
+export interface CredentialCreate extends AppCredentialBase { }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface CredentialUpdate extends Partial<AppCredentialBase> {}
+export interface CredentialUpdate extends Partial<AppCredentialBase> { }
 
 export interface AppCredential extends AppCredentialBase {
     id: string;
     user_id: string;
-    phone_number?: string | null;
+    identifier?: string | null;
+    channel?: string;
     created_at: string;
     updated_at: string;
 }

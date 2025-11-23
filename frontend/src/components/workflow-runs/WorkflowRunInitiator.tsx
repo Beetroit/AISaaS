@@ -170,7 +170,7 @@ export function WorkflowRunInitiator() {
             ) : (
               credentials?.map((credential) => (
                 <SelectItem key={credential.id} value={credential.id}>
-                  {credential.credential_type} - {credential.phone_number || credential.id}
+                  {credential.credential_type} - {credential.identifier || credential.id}
                 </SelectItem>
               ))
             )}

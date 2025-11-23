@@ -48,9 +48,9 @@ async def twilio_status_callback(request: Request):
     return {"status": "received"}
 
 
-@router.post("/twilio")
-async def twilio_whatsapp_webhook(
+async def _process_twilio_webhook(
     request: Request,
+    channel: str,
     credential_service: CredentialServiceDep,
     agent_workflow_service: AgentWorkflowServiceDep,
     chat_session_crud: ChatSessionCRUDDep,
@@ -59,36 +59,52 @@ async def twilio_whatsapp_webhook(
     workflow_run_crud: WorkflowRunCRUDDep,
     db: DBSession,
 ):
-    """
-    Handles incoming WhatsApp messages from Twilio.
-    This endpoint is multi-tenant and routes messages to the correct agent
-    based on the 'To' phone number.
-    """
     form_params = await request.form()
-    logger.info(f"Twilio webhook received: {form_params}")
+    logger.info(f"Twilio {channel} webhook received: {form_params}")
     form_params_dict = {key: value for key, value in form_params.items()}
+
+    # Extract To/From based on channel if needed, but Twilio usually standardizes 'To' and 'From'
     to_number = form_params_dict.get("To")
+    from_number = form_params_dict.get("From")
 
     if not to_number:
         raise HTTPException(
-            status_code=400, detail="Missing 'To' phone number in webhook data."
+            status_code=400, detail="Missing 'To' field in webhook data."
         )
 
-    # Find the credential associated with this Twilio phone number
+    # Clean up identifier based on channel prefix
+    identifier = str(to_number)
+    if channel == "whatsapp":
+        identifier = identifier.replace("whatsapp:", "")
+    elif channel == "facebook":
+        identifier = identifier.replace("messenger:", "")
+    elif channel == "instagram":
+        identifier = identifier.replace("instagram:", "")
+
+    # Find the credential
     credential_stmt = select(Credential).where(
         Credential.credential_type == "twilio",
-        Credential.phone_number == str(to_number).replace("whatsapp:", ""),
+        Credential.identifier == identifier,
+        Credential.channel == channel,
     )
     credential = (await db.execute(credential_stmt)).scalar_one_or_none()
+
+    # Fallback for backward compatibility (if channel is null/default) or if user hasn't migrated yet
+    if not credential and channel == "whatsapp":
+        credential_stmt = select(Credential).where(
+            Credential.credential_type == "twilio",
+            Credential.phone_number == identifier,
+        )
+        credential = (await db.execute(credential_stmt)).scalar_one_or_none()
+
     logger.info(f"Credential found: {credential}")
     if not credential:
         raise HTTPException(
             status_code=404,
-            detail=f"No credential found for Twilio phone number: {to_number}",
+            detail=f"No credential found for {channel} identifier: {identifier}",
         )
 
     # Enforce the new routing architecture: Find an active WorkflowRun for this Credential
-    # The client must have already created a WorkflowRun with this credential.
     workflow_run_stmt = (
         select(WorkflowRun)
         .where(
@@ -98,9 +114,7 @@ async def twilio_whatsapp_webhook(
         .order_by(WorkflowRun.updated_at.desc())
         .limit(1)
     )
-    logger.info(f"Workflow run query: {workflow_run_stmt}")
     workflow_run = (await db.execute(workflow_run_stmt)).scalar_one_or_none()
-    logger.info(f"Workflow run found: {workflow_run}")
 
     if not workflow_run:
         # No active run found - try to clone from default template
@@ -115,7 +129,7 @@ async def twilio_whatsapp_webhook(
         if not agent:
             raise HTTPException(
                 status_code=404,
-                detail=f"No agent found for user associated with credential {credential.phone_number}",
+                detail=f"No agent found for user associated with credential {identifier}",
             )
 
         # Look for a template run for this agent
@@ -209,22 +223,18 @@ async def twilio_whatsapp_webhook(
         )
 
     incoming_message = form_params_dict.get("Body")
-    from_number = form_params_dict.get("From")
 
     if not incoming_message or not from_number:
         raise HTTPException(status_code=400, detail="Missing message body or sender.")
 
     # Ensure ChatSession exists for this run
     if not workflow_run.chat_session_id:
-        # Create a new chat session linked to the run's agent and user
         chat_session_create = ChatSessionCreate(
             user_id=workflow_run.user_id,
             agent_id=workflow_run.agent_id,
             external_id=from_number,
         )
         chat_session = await chat_session_crud.create_chat_session(chat_session_create)
-
-        # Link session to run
         workflow_run.chat_session_id = chat_session.id
         await db.flush()
     else:
@@ -232,7 +242,6 @@ async def twilio_whatsapp_webhook(
             workflow_run.chat_session_id
         )
         if not chat_session:
-            # Fallback if ID exists but session doesn't (shouldn't happen but safe to handle)
             chat_session_create = ChatSessionCreate(
                 user_id=workflow_run.user_id,
                 agent_id=workflow_run.agent_id,
@@ -244,24 +253,17 @@ async def twilio_whatsapp_webhook(
             workflow_run.chat_session_id = chat_session.id
             await db.flush()
 
-    # Ensure a lead exists for this chat session (if needed by the workflow)
-    # The workflow run might already have a lead_id, or we might need to create one.
-    # Current logic: If run has lead_id, use it. If not, check session. If not, create.
-    # Ensure a lead exists for this chat session (if needed by the workflow)
-    # The workflow run might already have a lead_id, or we might need to create one.
-    # Current logic: If run has lead_id, use it. If not, check session. If not, create.
     if not workflow_run.lead_id:
         lead = await lead_crud.get_lead_by_chat_session_id(chat_session.id)
         if not lead:
-            # Extract profile name from Twilio data, fallback to phone number
             profile_name = form_params_dict.get("ProfileName")
             lead_name = profile_name if profile_name else from_number
 
             lead_create = LeadCreate(
                 name=lead_name,
-                contact_info={"phone": from_number},
+                contact_info={"phone": from_number, "channel": channel},
                 qualification_status="new",
-                source="whatsapp",
+                source=channel,
             )
             lead = await lead_crud.create_lead(
                 lead=lead_create,
@@ -278,15 +280,11 @@ async def twilio_whatsapp_webhook(
         )
     )
 
-    # Execute the workflow associated with the run
     agent_response = await agent_workflow_service.execute_workflow(
         workflow_run_id=workflow_run.id,
         user_message=incoming_message,
-        send_response=False,  # Webhook handles response via TwiML
+        send_response=False,
     )
-
-    # Mark credential as available after workflow execution (or handle in agent_workflow_service)
-    # await credential_service.mark_credential_available(credential.id, workflow_run.id)
 
     await message_crud.create_message(
         MessageCreate(
@@ -296,6 +294,78 @@ async def twilio_whatsapp_webhook(
 
     twiml_response = f"<Response><Message>{agent_response}</Message></Response>"
     return Response(content=twiml_response, media_type="application/xml")
+
+
+@router.post("/twilio")
+async def twilio_whatsapp_webhook(
+    request: Request,
+    credential_service: CredentialServiceDep,
+    agent_workflow_service: AgentWorkflowServiceDep,
+    chat_session_crud: ChatSessionCRUDDep,
+    lead_crud: LeadCRUDDep,
+    message_crud: MessageCRUDDep,
+    workflow_run_crud: WorkflowRunCRUDDep,
+    db: DBSession,
+):
+    return await _process_twilio_webhook(
+        request,
+        "whatsapp",
+        credential_service,
+        agent_workflow_service,
+        chat_session_crud,
+        lead_crud,
+        message_crud,
+        workflow_run_crud,
+        db,
+    )
+
+
+@router.post("/twilio/facebook")
+async def twilio_facebook_webhook(
+    request: Request,
+    credential_service: CredentialServiceDep,
+    agent_workflow_service: AgentWorkflowServiceDep,
+    chat_session_crud: ChatSessionCRUDDep,
+    lead_crud: LeadCRUDDep,
+    message_crud: MessageCRUDDep,
+    workflow_run_crud: WorkflowRunCRUDDep,
+    db: DBSession,
+):
+    return await _process_twilio_webhook(
+        request,
+        "facebook",
+        credential_service,
+        agent_workflow_service,
+        chat_session_crud,
+        lead_crud,
+        message_crud,
+        workflow_run_crud,
+        db,
+    )
+
+
+@router.post("/twilio/instagram")
+async def twilio_instagram_webhook(
+    request: Request,
+    credential_service: CredentialServiceDep,
+    agent_workflow_service: AgentWorkflowServiceDep,
+    chat_session_crud: ChatSessionCRUDDep,
+    lead_crud: LeadCRUDDep,
+    message_crud: MessageCRUDDep,
+    workflow_run_crud: WorkflowRunCRUDDep,
+    db: DBSession,
+):
+    return await _process_twilio_webhook(
+        request,
+        "instagram",
+        credential_service,
+        agent_workflow_service,
+        chat_session_crud,
+        lead_crud,
+        message_crud,
+        workflow_run_crud,
+        db,
+    )
 
 
 @router.post("/lead/{client_id}")
