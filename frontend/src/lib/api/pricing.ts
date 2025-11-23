@@ -8,6 +8,27 @@ export interface PricingPlan {
     price: string;
     features: string[];
     popular: boolean;
+    stripe_price_id?: string;
+    is_active: boolean;
+}
+
+export interface PricingPlanCreate {
+    name: string;
+    description?: string;
+    credits: number;
+    price: number;
+    features: string[];
+    popular: boolean;
+}
+
+export interface PricingPlanUpdate {
+    name?: string;
+    description?: string;
+    credits?: number;
+    price?: number;
+    features?: string[];
+    popular?: boolean;
+    is_active?: boolean;
 }
 
 export async function getPricingPlans(): Promise<PricingPlan[]> {

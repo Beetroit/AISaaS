@@ -69,7 +69,7 @@ export default function RevenuePage() {
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-4">
-                        {plansData?.plans?.map((plan: { id: string; name: string; description: string; credits: number; price: string; is_active: boolean }) => (
+                        {plansData?.map((plan: { id: string; name: string; description: string; credits: number; price: string; is_active: boolean }) => (
                             <div key={plan.id} className="border rounded-lg p-4">
                                 <div className="flex justify-between items-start">
                                     <div>

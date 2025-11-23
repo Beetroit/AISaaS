@@ -2,13 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, DollarSign, Workflow, ScrollText, ArrowLeft } from 'lucide-react';
+import { LayoutDashboard, Users, DollarSign, Workflow, ScrollText, ArrowLeft, Tag } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navigation = [
     { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
     { name: 'Users', href: '/admin/users', icon: Users },
     { name: 'Revenue', href: '/admin/revenue', icon: DollarSign },
+    { name: 'Pricing', href: '/admin/pricing', icon: Tag },
     { name: 'Workflows', href: '/admin/workflows', icon: Workflow },
     { name: 'Logs', href: '/admin/logs', icon: ScrollText },
 ];

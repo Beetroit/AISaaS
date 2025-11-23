@@ -15,12 +15,14 @@ class PricingPlanCRUD:
         return [
             {
                 "id": str(plan.id),
+                "stripe_price_id": plan.stripe_price_id,
                 "name": plan.name,
                 "description": plan.description,
                 "credits": plan.credits,
                 "price": plan.price,
                 "features": plan.features or [],
                 "popular": plan.popular,
+                "is_active": plan.is_active,
             }
             for plan in pricing_plans
         ]
@@ -48,4 +50,28 @@ class PricingPlanCRUD:
         db.add(db_plan)
         await db.flush()
 
+        return db_plan
+
+    @staticmethod
+    async def update_pricing_plan(db: AsyncSession, plan_id: str, plan_data: dict):
+        """Update an existing pricing plan."""
+        db_plan = await PricingPlanCRUD.get_pricing_plan_by_id(db, plan_id)
+        if not db_plan:
+            return None
+
+        for key, value in plan_data.items():
+            setattr(db_plan, key, value)
+
+        await db.flush()
+        return db_plan
+
+    @staticmethod
+    async def deactivate_pricing_plan(db: AsyncSession, plan_id: str):
+        """Deactivate a pricing plan (soft delete)."""
+        db_plan = await PricingPlanCRUD.get_pricing_plan_by_id(db, plan_id)
+        if not db_plan:
+            return None
+
+        db_plan.is_active = False
+        await db.flush()
         return db_plan

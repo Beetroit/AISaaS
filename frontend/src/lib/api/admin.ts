@@ -69,19 +69,6 @@ export interface RevenueAnalytics {
     trends: unknown[];
 }
 
-export interface PricingPlan {
-    id: string;
-    name: string;
-    description: string;
-    credits: number;
-    price: string;
-    features: string[];
-    is_active: boolean;
-}
-
-export interface PricingPlansResponse {
-    plans: PricingPlan[];
-}
 
 export interface WorkflowStats {
     total_executions: number;
@@ -148,12 +135,22 @@ export async function fetchRevenueAnalytics(): Promise<RevenueAnalytics> {
     return callApi<RevenueAnalytics>('/admin/revenue/analytics');
 }
 
-export async function fetchPricingPlans(): Promise<PricingPlansResponse> {
-    return callApi<PricingPlansResponse>('/admin/pricing-plans');
+import { PricingPlan, PricingPlanCreate, PricingPlanUpdate } from './pricing';
+
+export async function fetchPricingPlans(): Promise<PricingPlan[]> {
+    return callApi<PricingPlan[]>('/pricing/plans');
 }
 
-export async function updatePricingPlan(planId: string, updates: Record<string, unknown>): Promise<void> {
-    await callApi(`/admin/pricing-plans/${planId}`, { method: 'PUT', body: updates });
+export async function createPricingPlan(plan: PricingPlanCreate): Promise<PricingPlan> {
+    return callApi<PricingPlan>('/pricing/admin/plans', { method: 'POST', body: plan });
+}
+
+export async function updatePricingPlan(planId: string, updates: PricingPlanUpdate): Promise<PricingPlan> {
+    return callApi<PricingPlan>(`/pricing/admin/plans/${planId}`, { method: 'PUT', body: updates });
+}
+
+export async function deletePricingPlan(planId: string): Promise<PricingPlan> {
+    return callApi<PricingPlan>(`/pricing/admin/plans/${planId}`, { method: 'DELETE' });
 }
 
 // ========== Workflows ==========

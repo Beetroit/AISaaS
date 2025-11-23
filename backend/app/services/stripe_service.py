@@ -111,3 +111,64 @@ class StripeService:
         # TODO: Handle subscription status updates if session.mode == "subscription"
         # This would involve updating the user's subscription status in the database
         # based on the session.subscription ID.
+
+    def create_product(
+        self, name: str, description: str | None = None
+    ) -> stripe.Product:
+        """Create a new product in Stripe."""
+        try:
+            return stripe.Product.create(name=name, description=description)
+        except stripe.StripeError as e:
+            logger.error(f"Error creating Stripe product: {e}")
+            raise e
+
+    def create_price(
+        self, product_id: str, amount_cents: int, currency: str = "usd"
+    ) -> stripe.Price:
+        """Create a new price for a product in Stripe."""
+        try:
+            return stripe.Price.create(
+                product=product_id,
+                unit_amount=amount_cents,
+                currency=currency,
+                # Recurring prices would need 'recurring={"interval": "month"}' or similar
+                # For now, assuming one-time or we can add a parameter for recurring
+            )
+        except stripe.StripeError as e:
+            logger.error(f"Error creating Stripe price: {e}")
+            raise e
+
+    def update_product(
+        self, product_id: str, name: str | None = None, description: str | None = None
+    ) -> stripe.Product:
+        """Update an existing product in Stripe."""
+        try:
+            params = {}
+            if name:
+                params["name"] = name
+            if description:
+                params["description"] = description
+
+            if not params:
+                return stripe.Product.retrieve(product_id)
+
+            return stripe.Product.modify(product_id, **params)
+        except stripe.StripeError as e:
+            logger.error(f"Error updating Stripe product: {e}")
+            raise e
+
+    def archive_price(self, price_id: str) -> stripe.Price:
+        """Archive a price in Stripe (since prices are immutable)."""
+        try:
+            return stripe.Price.modify(price_id, active=False)
+        except stripe.StripeError as e:
+            logger.error(f"Error archiving Stripe price: {e}")
+            raise e
+
+    def archive_product(self, product_id: str) -> stripe.Product:
+        """Archive a product in Stripe."""
+        try:
+            return stripe.Product.modify(product_id, active=False)
+        except stripe.StripeError as e:
+            logger.error(f"Error archiving Stripe product: {e}")
+            raise e
