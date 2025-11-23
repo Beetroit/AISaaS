@@ -93,7 +93,7 @@ async def _process_twilio_webhook(
     if not credential and channel == "whatsapp":
         credential_stmt = select(Credential).where(
             Credential.credential_type == "twilio",
-            Credential.phone_number == identifier,
+            Credential.identifier == identifier,
         )
         credential = (await db.execute(credential_stmt)).scalar_one_or_none()
 

@@ -43,7 +43,8 @@ async def create_or_update_twilio_credentials(
     return TwilioCredentialResponse(
         id=credential.id,
         credential_type=credential.credential_type,
-        phone_number=credential.phone_number,
+        identifier=credential.identifier,
+        channel=credential.channel,
         has_account_sid=True,
         has_auth_token=True,
         created_at=credential.created_at,
@@ -82,7 +83,8 @@ async def get_twilio_credentials(
     return TwilioCredentialResponse(
         id=credential.id,
         credential_type=credential.credential_type,
-        phone_number=credential.phone_number,
+        identifier=credential.identifier,
+        channel=credential.channel,
         has_account_sid=has_account_sid,
         has_auth_token=has_auth_token,
         created_at=credential.created_at,

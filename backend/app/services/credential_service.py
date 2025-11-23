@@ -49,17 +49,10 @@ class CredentialService:
         )
         return result.scalars().first()
 
-    async def get_agent_by_twilio_phone_number(
-        self, phone_number: str
-    ) -> Optional[Agent]:
-        """Finds an agent by their configured Twilio phone number using an indexed query."""
-        stmt = (
-            select(Agent)
-            .join(Credential, Agent.user_id == Credential.user_id)
-            .where(
-                Credential.credential_type == "twilio",
-                Credential.phone_number == phone_number,
-            )
+    async def get_credential_by_phone(self, phone_number: str) -> Credential | None:
+        stmt = select(Credential).where(
+            Credential.credential_type == "twilio",
+            Credential.identifier == phone_number,
         )
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()

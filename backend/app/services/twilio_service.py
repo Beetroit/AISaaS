@@ -51,7 +51,7 @@ class TwilioService(MessagingService):
 
     def _send_whatsapp_message(
         self, to: str, body: str, client: Client, from_number: str
-    ) -> str:
+    ) -> str | None:
         # Ensure 'whatsapp:' prefix is present but not duplicated
         from_addr = str(from_number).strip()
         if not from_addr.startswith("whatsapp:"):
@@ -70,7 +70,7 @@ class TwilioService(MessagingService):
 
     def _send_facebook_message(
         self, to: str, body: str, client: Client, page_id: str
-    ) -> str:
+    ) -> str | None:
         # Twilio Messenger format: messenger:<Page ID>
         from_addr = str(page_id).strip()
         if not from_addr.startswith("messenger:"):
@@ -89,7 +89,7 @@ class TwilioService(MessagingService):
 
     def _send_instagram_message(
         self, to: str, body: str, client: Client, user_id: str
-    ) -> str:
+    ) -> str | None:
         # Twilio Instagram format: instagram:<User ID> (or handle?)
         # Usually it's the sender ID (IG Professional Account SID or similar)
         # But Twilio docs say 'instagram:<sender_id>'

@@ -24,7 +24,7 @@ async def get_pricing_plans_endpoint(
 ):
     """Get available pricing plans for the landing page - No authentication required."""
     plans = await pricing_plan_crud.get_all_pricing_plans(db_session)
-    return [PricingPlanResponse(**plan) for plan in plans]
+    return [PricingPlanResponse.model_validate(plan) for plan in plans]
 
 
 @router.post("/admin/plans", response_model=PricingPlanResponse)
