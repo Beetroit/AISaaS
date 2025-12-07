@@ -213,7 +213,7 @@ export default function AdminPricingPage() {
                     <AlertDialogHeader>
                         <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This will deactivate the pricing plan "{planToDelete?.name}". It will no
+                            This will deactivate the pricing plan &quot;{planToDelete?.name}&quot;. It will no
                             longer be available for purchase, but existing subscriptions may continue.
                         </AlertDialogDescription>
                     </AlertDialogHeader>

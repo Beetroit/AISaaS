@@ -202,9 +202,6 @@ export default function AgentDetailsPage() {
         <TwilioConfigModal
           isOpen={isTwilioConfigModalOpen}
           onClose={() => setIsTwilioConfigModalOpen(false)}
-          onSave={() => {
-            console.log("Twilio credentials saved");
-          }}
         />
       )}
 

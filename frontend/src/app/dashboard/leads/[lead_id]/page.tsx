@@ -3,7 +3,7 @@
 import { useParams, useRouter } from 'next/navigation';
 import React, { useState } from 'react';
 import { useLead, useUpdateLead } from '../../../../hooks/useLeads';
-import { LeadUpdate } from '../../../../types/lead';
+import { LeadRead, LeadUpdate } from '../../../../types/lead';
 
 export default function LeadDetailsPage() {
   const params = useParams();
@@ -58,7 +58,7 @@ export default function LeadDetailsPage() {
   );
 }
 
-function LeadEditForm({ lead }: { lead: any }) {
+function LeadEditForm({ lead }: { lead: LeadRead }) {
   const updateLeadMutation = useUpdateLead();
 
   const [source, setSource] = useState(lead.source || "");

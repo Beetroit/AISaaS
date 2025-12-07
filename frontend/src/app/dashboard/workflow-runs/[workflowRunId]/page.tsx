@@ -80,7 +80,7 @@ function WorkflowRunForm({
   const updateWorkflowRunMutation = useMutation({
     mutationFn: (updatedRun: WorkflowRunUpdate) =>
       updateWorkflowRun(workflowRunId, updatedRun),
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["workflowRun", workflowRunId],
       });

@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { NodeType } from "@/types/workflow";
-import { LeadExtractionConfig } from "./nodes/LeadExtractionConfig";
+import { LeadExtractionConfig, type LeadField } from "./nodes/LeadExtractionConfig";
 
 interface NodeConfigurationModalProps {
   nodeId: string;
@@ -87,7 +87,7 @@ export function NodeConfigurationModal({
                 {nodeTypeSchema.type === "lead_extraction" && key === "fields" ? (
                   <div className="col-span-4">
                     <LeadExtractionConfig
-                      fields={(formData[key] as any[]) || []}
+                      fields={(formData[key] as LeadField[]) || []}
                       onChange={(newFields) =>
                         setFormData((prev) => ({ ...prev, [key]: newFields }))
                       }

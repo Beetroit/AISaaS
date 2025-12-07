@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 import AuthModal from '../../../components/AuthModal';
 import {
@@ -23,6 +23,7 @@ export default function BillingPage() {
   const [processingPriceId, setProcessingPriceId] = useState<string | null>(null); // New state for per-button loading
   const { data: isAuthenticated } = useAuthStatus();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const pendingProcessedRef = useRef(false);
 
   const createCheckoutSessionMutation = useCreateCheckoutSession();
   const getCustomerPortalUrlMutation = useGetCustomerPortalUrl();
@@ -47,15 +48,17 @@ export default function BillingPage() {
   };
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !pendingProcessedRef.current) {
       const pendingPurchase = getPendingPurchase();
       if (pendingPurchase) {
+        pendingProcessedRef.current = true;
         clearPendingPurchase();
         // Automatically trigger the purchase
         handlePurchasePackage(pendingPurchase.priceId);
       }
     }
-  }, [isAuthenticated, handlePurchasePackage]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
 
   return (
     <>
