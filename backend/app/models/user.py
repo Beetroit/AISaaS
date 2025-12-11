@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from sqlalchemy import Boolean, Integer, String
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from ulid import ULID
 
@@ -48,6 +49,12 @@ class User(Base):
     message_credits: Mapped[int] = mapped_column(
         Integer, default=0, server_default="0", nullable=False
     )
+    whitelisted_phone_numbers: Mapped[Optional[List[str]]] = mapped_column(
+        JSONB, nullable=True
+    )
+    allowed_admin_endpoints: Mapped[Optional[List[str]]] = mapped_column(
+        JSONB, nullable=True
+    )
 
     agents: Mapped[list[Agent]] = relationship("Agent", back_populates="owner")
     knowledge_base_documents: Mapped[list[KnowledgeBaseDocument]] = relationship(
@@ -81,6 +88,8 @@ class User(Base):
             "is_active": self.is_active,
             "is_admin": self.is_admin,
             "message_credits": self.message_credits,
+            "whitelisted_phone_numbers": self.whitelisted_phone_numbers,
+            "allowed_admin_endpoints": self.allowed_admin_endpoints,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

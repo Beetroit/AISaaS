@@ -32,8 +32,7 @@ class TwilioCredentialCreate(BaseModel):
 
     twilio_account_sid: str
     twilio_auth_token: str
-    twilio_account_sid: str
-    twilio_auth_token: str
+    twilio_phone_number: str
     identifier: str
     channel: str = "whatsapp"
 

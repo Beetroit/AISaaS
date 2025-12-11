@@ -151,7 +151,7 @@ class OpenAIService:
         system_prompt: Optional[str] = None,
         context_documents: Optional[List[str]] = None,
         **kwargs,
-    ) -> str:
+    ) -> tuple[str, list]:
         response = await self.create_gpt5_response(
             input=prompt,
             model=model,
@@ -163,7 +163,20 @@ class OpenAIService:
         if isinstance(response, AsyncStream):
             raise TypeError("Expected a non-streaming response, but received a stream.")
 
-        return response.output_text
+        # Extract tool calls from response.output
+        tool_calls = []
+        for item in response.output:
+            if hasattr(item, "type") and item.type == "function_call":
+                # Parse the arguments JSON
+                import json
+
+                try:
+                    arguments = json.loads(item.arguments)
+                    tool_calls.append({"name": item.name, "arguments": arguments})
+                except (json.JSONDecodeError, AttributeError):
+                    continue
+
+        return response.output_text, tool_calls
 
     def _convert_tools_to_gpt5_format(
         self, tools: List[Dict]
@@ -182,9 +195,7 @@ class OpenAIService:
                         "name": tool["function"]["name"],
                         "description": tool["function"].get("description"),
                         "parameters": tool["function"].get("parameters"),
-                        "strict": tool["function"].get(
-                            "strict", True
-                        ),  # GPT-5 defaults to strict
+                        "strict": tool["function"].get("strict", True),
                     }
                 )
             else:

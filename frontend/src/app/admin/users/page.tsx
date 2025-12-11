@@ -26,13 +26,20 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
+import { AdminUserSettingsForm } from './_components/AdminUserSettingsForm'; // Import the new component
+import { User } from '@/lib/api/admin'; // Import User interface
+
 
 export default function UsersPage() {
     const [search, setSearch] = useState('');
     const [selectedUser, setSelectedUser] = useState<string | null>(null);
-    const [action, setAction] = useState<'suspend' | 'delete' | 'credits' | 'promote' | 'demote' | null>(null);
+    const [action, setAction] = useState<'suspend' | 'delete' | 'credits' | 'promote' | 'demote' | 'adminSettings' | null>(null); // Added 'adminSettings'
     const [reason, setReason] = useState('');
     const [creditAmount, setCreditAmount] = useState('');
+
+    // State for Admin Settings dialog
+    const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
+    const [userToEditAdminSettings, setUserToEditAdminSettings] = useState<User | null>(null);
 
     const queryClient = useQueryClient();
 
@@ -109,6 +116,8 @@ export default function UsersPage() {
         setAction(null);
         setReason('');
         setCreditAmount('');
+        setIsSettingsDialogOpen(false); // Close settings dialog as well
+        setUserToEditAdminSettings(null); // Clear selected user for settings
     };
 
     const handleAction = () => {
@@ -180,7 +189,7 @@ export default function UsersPage() {
                                         </TableCell>
                                         <TableCell>{user.message_credits}</TableCell>
                                         <TableCell>
-                                            <div className="flex gap-2">
+                                            <div className="flex flex-wrap gap-2"> {/* Changed to flex-wrap */}
                                                 {user.is_active ? (
                                                     <Button
                                                         size="sm"
@@ -221,8 +230,6 @@ export default function UsersPage() {
                                                 >
                                                     Delete
                                                 </Button>
-                                            </div>
-                                            <div className="flex gap-2 mt-2">
                                                 {!user.is_admin && (
                                                     <Button
                                                         size="sm"
@@ -247,6 +254,16 @@ export default function UsersPage() {
                                                         Remove Admin
                                                     </Button>
                                                 )}
+                                                <Button
+                                                    size="sm"
+                                                    variant="secondary"
+                                                    onClick={() => {
+                                                        setUserToEditAdminSettings(user);
+                                                        setIsSettingsDialogOpen(true);
+                                                    }}
+                                                >
+                                                    Admin Settings
+                                                </Button>
                                             </div>
                                         </TableCell>
                                     </TableRow>
@@ -256,6 +273,29 @@ export default function UsersPage() {
                     )}
                 </CardContent>
             </Card>
+
+            {/* Admin Settings Dialog */}
+            <Dialog open={isSettingsDialogOpen} onOpenChange={setIsSettingsDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Admin Settings for {userToEditAdminSettings?.email}</DialogTitle>
+                        <DialogDescription>
+                            Manage whitelisted phone numbers and allowed admin endpoints for this user.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {userToEditAdminSettings && (
+                        <AdminUserSettingsForm
+                            userId={userToEditAdminSettings.id}
+                            initialWhitelistedPhoneNumbers={userToEditAdminSettings.whitelisted_phone_numbers}
+                            initialAllowedAdminEndpoints={userToEditAdminSettings.allowed_admin_endpoints}
+                            initialIsAdmin={userToEditAdminSettings.is_admin}
+                            initialIsSuperAdmin={userToEditAdminSettings.is_super_admin}
+                            onClose={closeDialog}
+                        />
+                    )}
+                </DialogContent>
+            </Dialog>
+
 
             {/* Action Dialogs */}
             <Dialog open={action === 'suspend'} onOpenChange={closeDialog}>

@@ -113,8 +113,11 @@ async def read_users_me(current_user: CurrentUser):
         email=current_user.email,
         is_active=current_user.is_active,
         is_admin=current_user.is_admin,
+        is_super_admin=current_user.is_super_admin,
         message_credits=current_user.message_credits,
         agent_ids=agent_ids,
+        whitelisted_phone_numbers=current_user.whitelisted_phone_numbers,
+        allowed_admin_endpoints=current_user.allowed_admin_endpoints,
     )
 
 

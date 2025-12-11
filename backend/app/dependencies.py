@@ -23,11 +23,15 @@ from backend.app.crud.workflow_run_crud import WorkflowRunCRUD
 from backend.app.database import AsyncSessionLocal
 from backend.app.models.user import User
 from backend.app.security import is_token_blacklisted
+from backend.app.services.admin_api_tool import AdminAPITool
+from backend.app.services.admin_command_handler import AdminCommandHandler
+from backend.app.services.admin_message_evaluator import AdminMessageEvaluator
 from backend.app.services.agent_workflow_service import AgentWorkflowService
 from backend.app.services.ai_service import AIService
 from backend.app.services.credential_service import CredentialService
 from backend.app.services.document_processor_service import DocumentProcessorService
 from backend.app.services.google_calendar_service import GoogleCalendarService
+from backend.app.services.message_router import MessageRouter
 from backend.app.services.messaging_service import MessagingService
 from backend.app.services.openai_service import OpenAIService
 from backend.app.services.report_service import ReportService
@@ -64,45 +68,48 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
             raise
 
 
-def get_user_crud(session: AsyncSession = Depends(get_db)) -> UserCRUD:
+DBSession = Annotated[AsyncSession, Depends(get_db)]
+
+
+def get_user_crud(session: DBSession) -> UserCRUD:
     return UserCRUD(session)
 
 
-def get_agent_crud(session: AsyncSession = Depends(get_db)) -> AgentCRUD:
+def get_agent_crud(session: DBSession) -> AgentCRUD:
     return AgentCRUD(session)
 
 
-def get_chat_session_crud(session: AsyncSession = Depends(get_db)) -> ChatSessionCRUD:
+def get_chat_session_crud(session: DBSession) -> ChatSessionCRUD:
     return ChatSessionCRUD(session)
 
 
-def get_appointment_crud(session: AsyncSession = Depends(get_db)) -> AppointmentCRUD:
+def get_appointment_crud(session: DBSession) -> AppointmentCRUD:
     return AppointmentCRUD(session)
 
 
-def get_lead_crud(session: AsyncSession = Depends(get_db)) -> LeadCRUD:
+def get_lead_crud(session: DBSession) -> LeadCRUD:
     return LeadCRUD(session)
 
 
-def get_message_crud(session: AsyncSession = Depends(get_db)) -> MessageCRUD:
+def get_message_crud(session: DBSession) -> MessageCRUD:
     return MessageCRUD(session)
 
 
 def get_knowledge_base_document_crud(
-    session: AsyncSession = Depends(get_db),
+    session: DBSession,
 ) -> KnowledgeBaseDocumentCRUD:
     return KnowledgeBaseDocumentCRUD(session)
 
 
-def get_workflow_crud(session: AsyncSession = Depends(get_db)) -> WorkflowCRUD:
+def get_workflow_crud(session: DBSession) -> WorkflowCRUD:
     return WorkflowCRUD(session)
 
 
-def get_workflow_run_crud(session: AsyncSession = Depends(get_db)) -> WorkflowRunCRUD:
+def get_workflow_run_crud(session: DBSession) -> WorkflowRunCRUD:
     return WorkflowRunCRUD(session)
 
 
-def get_pricing_plan_crud(session: AsyncSession = Depends(get_db)) -> PricingPlanCRUD:
+def get_pricing_plan_crud(session: DBSession) -> PricingPlanCRUD:
     return PricingPlanCRUD()
 
 
@@ -146,13 +153,13 @@ def get_retrieval_service(
 
 
 def get_credential_service(
-    session: AsyncSession = Depends(get_db),
+    session: DBSession,
 ) -> CredentialService:
     return CredentialService(session)
 
 
 def get_google_calendar_service(
-    db: AsyncSession = Depends(get_db),
+    db: DBSession,
     credential_service: CredentialService = Depends(get_credential_service),
 ) -> GoogleCalendarService:
     return GoogleCalendarService(db=db, credential_service=credential_service)
@@ -184,6 +191,34 @@ def get_agent_workflow_service(
     )
 
 
+def get_admin_api_tool() -> AdminAPITool:
+    return AdminAPITool()
+
+
+def get_admin_command_handler(
+    session: DBSession,
+    admin_api_tool: AdminAPITool = Depends(get_admin_api_tool),
+    ai_service: OpenAIService = Depends(get_openai_service),
+) -> AdminCommandHandler:
+    return AdminCommandHandler(
+        session=session, admin_api_tool=admin_api_tool, ai_service=ai_service
+    )
+
+
+def get_admin_message_evaluator() -> AdminMessageEvaluator:
+    return AdminMessageEvaluator()
+
+
+def get_message_router(
+    admin_command_handler: AdminCommandHandler = Depends(get_admin_command_handler),
+    agent_workflow_service: AgentWorkflowService = Depends(get_agent_workflow_service),
+) -> MessageRouter:
+    return MessageRouter(
+        admin_command_handler=admin_command_handler,
+        agent_workflow_service=agent_workflow_service,
+    )
+
+
 def get_webhook_service(
     chat_session_crud: ChatSessionCRUD = Depends(get_chat_session_crud),
     lead_crud: LeadCRUD = Depends(get_lead_crud),
@@ -204,9 +239,7 @@ def get_webhook_service(
     )
 
 
-async def get_current_user(
-    token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)
-):
+async def get_current_user(db: DBSession, token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -244,7 +277,7 @@ async def get_current_user(
 
 
 def get_report_service(
-    db: AsyncSession = Depends(get_db),
+    db: DBSession,
 ) -> ReportService:
     return ReportService(db=db)
 
@@ -280,7 +313,7 @@ AdminUser = Annotated[User, Depends(verify_admin)]
 
 
 # Database Dependency
-DBSession = Annotated[AsyncSession, Depends(get_db)]
+
 AgentWorkflowServiceDep = Annotated[
     AgentWorkflowService, Depends(get_agent_workflow_service)
 ]
@@ -296,3 +329,13 @@ ChromaClientDep = Annotated[ClientAPI, Depends(get_chroma_client)]
 WebhookServiceDep = Annotated["WebhookService", Depends(get_webhook_service)]
 StripeServiceDep = Annotated[StripeService, Depends(get_stripe_service)]
 ReportServiceDep = Annotated[ReportService, Depends(get_report_service)]
+
+# Admin Services
+AdminAPIToolDep = Annotated[AdminAPITool, Depends(get_admin_api_tool)]
+AdminCommandHandlerDep = Annotated[
+    AdminCommandHandler, Depends(get_admin_command_handler)
+]
+AdminMessageEvaluatorDep = Annotated[
+    AdminMessageEvaluator, Depends(get_admin_message_evaluator)
+]
+MessageRouterDep = Annotated[MessageRouter, Depends(get_message_router)]

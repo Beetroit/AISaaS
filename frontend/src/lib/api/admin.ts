@@ -36,6 +36,8 @@ export interface User {
     stripe_customer_id?: string;
     created_at?: string;
     updated_at?: string;
+    whitelisted_phone_numbers?: string[] | null;
+    allowed_admin_endpoints?: string[] | null;
 }
 
 export interface UserListResponse {
@@ -76,6 +78,11 @@ export interface WorkflowStats {
     active_runs: number;
     avg_execution_time: number;
     error_types: unknown[];
+}
+
+export interface AdminCommandInfo {
+    url: string;
+    description: string;
 }
 
 // ========== Dashboard ==========
@@ -129,6 +136,23 @@ export async function demoteUser(userId: string): Promise<void> {
     await callApi(`/admin/users/${userId}/demote`, { method: 'POST' });
 }
 
+export async function updateUserAdminSettings({
+    userId,
+    settings,
+}: {
+    userId: string;
+    settings: {
+        is_active?: boolean;
+        is_admin?: boolean;
+        is_super_admin?: boolean;
+        message_credits?: number;
+        whitelisted_phone_numbers?: string[] | null;
+        allowed_admin_endpoints?: string[] | null;
+    };
+}): Promise<void> {
+    await callApi(`/admin/users/${userId}/admin-settings`, { method: 'PATCH', body: settings });
+}
+
 // ========== Revenue ==========
 
 export async function fetchRevenueAnalytics(): Promise<RevenueAnalytics> {
@@ -157,6 +181,10 @@ export async function deletePricingPlan(planId: string): Promise<PricingPlan> {
 
 export async function fetchWorkflowStats(): Promise<WorkflowStats> {
     return callApi<WorkflowStats>('/admin/workflows/stats');
+}
+
+export async function fetchAvailableAdminCommands(): Promise<AdminCommandInfo[]> {
+    return callApi<AdminCommandInfo[]>('/admin/available-admin-commands');
 }
 
 // ========== Logs ==========

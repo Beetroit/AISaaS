@@ -52,9 +52,10 @@ class Settings(BaseSettings):
     stripe_customer_portal_return_url: str
     stripe_webhook_secret: str
     backend_base_url: str
+    internal_api_url: str = "http://localhost:8000"
     redis_host: str = "localhost"
     redis_port: int = 6378
-    allow_concurrent_twilio_use: bool = False  # New setting for admin override
+    allow_concurrent_twilio_use: bool = False
 
 
 settings = Settings.model_validate({})

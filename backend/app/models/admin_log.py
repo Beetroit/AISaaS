@@ -38,7 +38,10 @@ class AdminActivityLog(Base):
     )  # user:usr_123
     details: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     timestamp: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        index=True,
     )
 
     def __repr__(self) -> str:

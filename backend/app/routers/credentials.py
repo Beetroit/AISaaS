@@ -202,7 +202,7 @@ async def get_user_credentials(
             safe_data = {
                 "id": credential.id,
                 "credential_type": credential.credential_type,
-                "phone_number": credential.phone_number,
+                "phone_number": credential.identifier,
                 "created_at": credential.created_at,
                 "updated_at": credential.updated_at,
             }
@@ -210,7 +210,7 @@ async def get_user_credentials(
             # Add type-specific safe data
             if cred_type == "twilio":
                 safe_data["has_credentials"] = True
-                safe_data["phone_number"] = credential.phone_number
+                safe_data["phone_number"] = credential.identifier
             elif cred_type == "lead_webhook_secret":
                 from backend.app.utils.encryption import encryption_helper
 
@@ -251,7 +251,7 @@ async def create_credential(
         id=credential.id,
         user_id=credential.user_id,
         credential_type=credential.credential_type,
-        credentials_data=credential_data.credentials_data,  # Note: In production, decrypt this
+        credentials_data=credential_data.credentials_data,
         created_at=credential.created_at,
         updated_at=credential.updated_at,
     )

@@ -130,7 +130,7 @@ class CredentialService:
 
         if credential:
             credential.credentials_data = encrypted_data
-            credential.phone_number = phone_number
+            credential.identifier = phone_number
         else:
             credential = Credential(
                 user_id=user_id,

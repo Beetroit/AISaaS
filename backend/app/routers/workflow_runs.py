@@ -36,7 +36,7 @@ async def create_workflow_run_endpoint(
     # Execute the workflow
     await agent_workflow_service.execute_workflow(
         workflow_run_id=created_workflow_run.id,
-        user_message=workflow_run_data.initial_data.get(
+        user_message=(workflow_run_data.initial_data or {}).get(
             "user_message", "Workflow initiated manually."
         ),
     )

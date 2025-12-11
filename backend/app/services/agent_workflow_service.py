@@ -293,7 +293,9 @@ class AgentWorkflowService:
             )
 
             # Get current state
-            current_data = chat_session.lead_collection_state.get("collected_data", {})
+            current_data = (chat_session.lead_collection_state or {}).get(
+                "collected_data", {}
+            )
             logger.info(
                 f"[Lead Extraction] Current collected data: {json.dumps(current_data, indent=2)}"
             )
@@ -416,7 +418,7 @@ class AgentWorkflowService:
             # --- 4. Update State (Lead Extraction) ---
             if node_type == "lead_extraction" and extracted_json:
                 # Update collected data
-                collected_data = chat_session.lead_collection_state.get(
+                collected_data = (chat_session.lead_collection_state or {}).get(
                     "collected_data", {}
                 )
                 for k, v in extracted_json.items():
@@ -445,7 +447,7 @@ class AgentWorkflowService:
 
                     # Check required fields
                     lead_config = LeadExtractionConfig(**node.get("data", {}))
-                    collected_data = chat_session.lead_collection_state.get(
+                    collected_data = (chat_session.lead_collection_state or {}).get(
                         "collected_data", {}
                     )
                     missing = []
@@ -511,7 +513,7 @@ class AgentWorkflowService:
             # Create new
             lead = await self.lead_crud.create_lead(
                 LeadCreate(
-                    source="whatsapp",  # Track lead source
+                    source="whatsapp",
                     contact_info=final_data,
                 ),
                 user_id=chat_session.user_id,
@@ -610,8 +612,8 @@ class AgentWorkflowService:
                     )
                     if decrypted_creds:
                         await self.messaging_service.send_message(
-                            to=chat_session.external_id,
-                            body=final_response,
+                            to_number=chat_session.external_id,
+                            message_body=final_response,
                             credential_model=credential_model,
                         )
                     else:

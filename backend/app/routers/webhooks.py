@@ -11,17 +11,21 @@ from twilio.request_validator import RequestValidator
 
 from backend.app.config import logger, settings
 from backend.app.dependencies import (
+    AdminCommandHandlerDep,
+    AdminMessageEvaluatorDep,
     AgentWorkflowServiceDep,
     ChatSessionCRUDDep,
     CredentialServiceDep,
     DBSession,
     LeadCRUDDep,
     MessageCRUDDep,
+    MessageRouterDep,
     StripeServiceDep,
     WorkflowRunCRUDDep,
 )
 from backend.app.models.agent import Agent
 from backend.app.models.credential import Credential
+from backend.app.models.user import User
 from backend.app.models.workflow import Workflow
 from backend.app.models.workflow_run import WorkflowRun
 from backend.app.schemas.chat_session import ChatSessionCreate
@@ -57,19 +61,23 @@ async def _process_twilio_webhook(
     lead_crud: LeadCRUDDep,
     message_crud: MessageCRUDDep,
     workflow_run_crud: WorkflowRunCRUDDep,
+    admin_message_evaluator: AdminMessageEvaluatorDep,
+    message_router: MessageRouterDep,
     db: DBSession,
+    admin_handler: AdminCommandHandlerDep,
 ):
     form_params = await request.form()
     logger.info(f"Twilio {channel} webhook received: {form_params}")
     form_params_dict = {key: value for key, value in form_params.items()}
 
-    # Extract To/From based on channel if needed, but Twilio usually standardizes 'To' and 'From'
     to_number = form_params_dict.get("To")
     from_number = form_params_dict.get("From")
+    incoming_message = form_params_dict.get("Body")
 
-    if not to_number:
+    if not to_number or not from_number or not incoming_message:
         raise HTTPException(
-            status_code=400, detail="Missing 'To' field in webhook data."
+            status_code=400,
+            detail="Missing 'To', 'From', or 'Body' field in webhook data.",
         )
 
     # Clean up identifier based on channel prefix
@@ -89,6 +97,7 @@ async def _process_twilio_webhook(
     )
     credential = (await db.execute(credential_stmt)).scalar_one_or_none()
 
+    logger.info(f"Credential found: {credential}")
     # Fallback for backward compatibility (if channel is null/default) or if user hasn't migrated yet
     if not credential and channel == "whatsapp":
         credential_stmt = select(Credential).where(
@@ -97,13 +106,42 @@ async def _process_twilio_webhook(
         )
         credential = (await db.execute(credential_stmt)).scalar_one_or_none()
 
-    logger.info(f"Credential found: {credential}")
+    logger.info(f"Credential found via fallback: {credential}")
     if not credential:
         raise HTTPException(
             status_code=404,
             detail=f"No credential found for {channel} identifier: {identifier}",
         )
 
+    # TEMPORARY: Fetch user for admin checks early
+    # In a proper setup, this user would be passed with the credential
+    user_stmt = select(User).where(User.id == credential.user_id)
+    user = (await db.execute(user_stmt)).scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found for credential.")
+
+    # --- Admin Command Evaluation ---
+    is_admin_command = await admin_message_evaluator.evaluate_message(
+        from_number=from_number, message_body=incoming_message, user=user
+    )
+
+    # --- Message Routing ---
+    if is_admin_command:
+        admin_response = await admin_handler.handle_command(
+            incoming_message, from_number, user
+        )
+        # admin_response = await message_router.route_message(
+        #     from_number=from_number,
+        #     message_body=incoming_message,
+        #     is_admin_command=True,
+        #     workflow_run=None,
+        #     user=user,
+        #     credential_service=credential_service,
+        # )
+        twiml_response = f"<Response><Message>{admin_response}</Message></Response>"
+        return Response(content=twiml_response, media_type="application/xml")
+
+    # If not an admin command, proceed with normal workflow processing
     # Enforce the new routing architecture: Find an active WorkflowRun for this Credential
     workflow_run_stmt = (
         select(WorkflowRun)
@@ -305,18 +343,24 @@ async def twilio_whatsapp_webhook(
     lead_crud: LeadCRUDDep,
     message_crud: MessageCRUDDep,
     workflow_run_crud: WorkflowRunCRUDDep,
+    admin_message_evaluator: AdminMessageEvaluatorDep,
+    message_router: MessageRouterDep,
     db: DBSession,
+    admin_handler: AdminCommandHandlerDep,
 ):
     return await _process_twilio_webhook(
-        request,
-        "whatsapp",
-        credential_service,
-        agent_workflow_service,
-        chat_session_crud,
-        lead_crud,
-        message_crud,
-        workflow_run_crud,
-        db,
+        request=request,
+        channel="whatsapp",
+        credential_service=credential_service,
+        agent_workflow_service=agent_workflow_service,
+        chat_session_crud=chat_session_crud,
+        lead_crud=lead_crud,
+        message_crud=message_crud,
+        workflow_run_crud=workflow_run_crud,
+        admin_message_evaluator=admin_message_evaluator,
+        message_router=message_router,
+        db=db,
+        admin_handler=admin_handler,
     )
 
 
@@ -329,18 +373,24 @@ async def twilio_facebook_webhook(
     lead_crud: LeadCRUDDep,
     message_crud: MessageCRUDDep,
     workflow_run_crud: WorkflowRunCRUDDep,
+    admin_message_evaluator: AdminMessageEvaluatorDep,
+    message_router: MessageRouterDep,
     db: DBSession,
+    admin_handler: AdminCommandHandlerDep,
 ):
     return await _process_twilio_webhook(
-        request,
-        "facebook",
-        credential_service,
-        agent_workflow_service,
-        chat_session_crud,
-        lead_crud,
-        message_crud,
-        workflow_run_crud,
-        db,
+        request=request,
+        channel="facebook",
+        credential_service=credential_service,
+        agent_workflow_service=agent_workflow_service,
+        chat_session_crud=chat_session_crud,
+        lead_crud=lead_crud,
+        message_crud=message_crud,
+        workflow_run_crud=workflow_run_crud,
+        admin_message_evaluator=admin_message_evaluator,
+        message_router=message_router,
+        db=db,
+        admin_handler=admin_handler,
     )
 
 
@@ -353,18 +403,24 @@ async def twilio_instagram_webhook(
     lead_crud: LeadCRUDDep,
     message_crud: MessageCRUDDep,
     workflow_run_crud: WorkflowRunCRUDDep,
+    admin_message_evaluator: AdminMessageEvaluatorDep,
+    message_router: MessageRouterDep,
     db: DBSession,
+    admin_handler: AdminCommandHandlerDep,
 ):
     return await _process_twilio_webhook(
-        request,
-        "instagram",
-        credential_service,
-        agent_workflow_service,
-        chat_session_crud,
-        lead_crud,
-        message_crud,
-        workflow_run_crud,
-        db,
+        request=request,
+        channel="instagram",
+        credential_service=credential_service,
+        agent_workflow_service=agent_workflow_service,
+        chat_session_crud=chat_session_crud,
+        lead_crud=lead_crud,
+        message_crud=message_crud,
+        workflow_run_crud=workflow_run_crud,
+        admin_message_evaluator=admin_message_evaluator,
+        message_router=message_router,
+        db=db,
+        admin_handler=admin_handler,
     )
 
 
@@ -438,7 +494,7 @@ async def lead_intake_webhook(
             lead=lead_create,
             user_id=agent.user_id,
             agent_id=agent.id,
-            chat_session_id=None,  # No chat session for direct lead intake
+            chat_session_id=None,
         )
 
         # --- Workflow Selection and WorkflowRun Creation for Lead Intake ---
@@ -466,7 +522,7 @@ async def lead_intake_webhook(
             lead_id=new_lead.id,
             user_id=agent.user_id,
             status=WorkflowRunStatus.IN_PROGRESS,
-            initial_data=webhook_data,  # Store the raw webhook data as initial data
+            initial_data=webhook_data,
         )
         workflow_run = await workflow_run_crud.create_workflow_run(
             workflow_run_data=workflow_run_create

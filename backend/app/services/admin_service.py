@@ -10,9 +10,9 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.app.models.transaction import Transaction
 from backend.app.models.user import User
 from backend.app.models.workflow_run import WorkflowRun
-from backend.app.models.transaction import Transaction
 
 
 class AdminService:
@@ -153,8 +153,10 @@ class AdminService:
 
         return {
             "workflow_runs": workflow_count,
-            "message_count": 0,  # TODO: Implement
-            "lead_count": 0,  # TODO: Implement
+            # TODO: Implement
+            "message_count": 0,
+            # TODO: Implement
+            "lead_count": 0,
         }
 
     # ========== Revenue Analytics (Section 3) ==========
@@ -193,7 +195,8 @@ class AdminService:
         return {
             "total": total_revenue,
             "by_plan": by_plan,
-            "trends": [],  # TODO: Implement trends
+            # TODO: Implement trends
+            "trends": [],
         }
 
     # ========== Workflow Analytics (Section 4) ==========
@@ -226,6 +229,8 @@ class AdminService:
             "total_executions": total_executions,
             "success_rate": round(success_rate, 2),
             "active_runs": active_runs,
-            "avg_execution_time": 0,  # TODO: Calculate from execution logs
-            "error_types": [],  # TODO: Parse from error logs
+            # TODO: Calculate from execution logs
+            "avg_execution_time": 0,
+            # TODO: Parse from error logs
+            "error_types": [],
         }

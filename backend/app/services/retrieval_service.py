@@ -26,7 +26,7 @@ class RetrievalService:
         query: str,
         user_id: str,
         agent_id: str | None = None,
-        document_ids: List[str] | None = None,  # New parameter
+        document_ids: List[str] | None = None,
         n_results: int = 5,
         collection_name: str = "knowledge_base",
     ) -> List[RelevantChunk]:

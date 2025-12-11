@@ -10,10 +10,13 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, or_, select
 
+from backend.app.constants.admin_commands import ADMIN_COMMANDS  # Added
 from backend.app.crud.pricing_plan_crud import PricingPlanCRUD
 from backend.app.crud.user_crud import UserCRUD
 from backend.app.dependencies import AdminUser, DBSession
+from backend.app.models.lead import Lead  # Added
 from backend.app.models.user import User
+from backend.app.models.workflow import Workflow  # Added
 from backend.app.schemas.admin import (
     AdminLogResponse,
     DashboardMetricsResponse,
@@ -23,6 +26,7 @@ from backend.app.schemas.admin import (
     UserListResponse,
     UserSuspendRequest,
 )
+from backend.app.schemas.user import UserAdminUpdate
 from backend.app.services.admin_logger import AdminLogger
 from backend.app.services.admin_service import AdminService
 
@@ -260,6 +264,54 @@ async def adjust_user_credits(
         "new_credits": user.message_credits,
     }
 
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"user_id": user_id, "message_credits": user.message_credits}
+
+
+@router.get("/workflows/counts")
+async def get_workflow_counts(admin: AdminUser, db: DBSession):
+    """Get counts of workflows by status."""
+    total_workflows = await db.scalar(select(func.count(Workflow.id)))
+    active_workflows = await db.scalar(select(func.count(Workflow.id)))
+
+    return {
+        "total_workflows": total_workflows,
+        "active_workflows": active_workflows,
+        # Add more status counts as needed
+    }
+
+
+@router.get("/leads/counts")
+async def get_lead_counts(admin: AdminUser, db: DBSession):
+    """Get counts of leads by qualification status."""
+    total_leads = await db.scalar(select(func.count(Lead.id)))
+    new_leads = await db.scalar(
+        select(func.count(Lead.id)).where(Lead.qualification_status == "new")
+    )
+    qualified_leads = await db.scalar(
+        select(func.count(Lead.id)).where(Lead.qualification_status == "qualified")
+    )
+
+    return {
+        "total_leads": total_leads,
+        "new_leads": new_leads,
+        "qualified_leads": qualified_leads,
+        # Add more status counts as needed
+    }
+
+
+@router.get("/available-admin-commands")
+async def get_available_admin_commands(admin: AdminUser):
+    """Get a list of all available admin commands with their descriptions."""
+    # Ensure only super admins can fetch the list of *all* possible commands
+    if not admin.is_super_admin:
+        raise HTTPException(
+            status_code=403,
+            detail="Only super admins can access the list of available commands.",
+        )
+    return ADMIN_COMMANDS
+
 
 # ========== Section 3: Revenue Management ==========
 
@@ -442,3 +494,60 @@ async def demote_user(
     )
 
     return {"message": "User demoted from Admin successfully", "user_id": user_id}
+
+
+@router.patch("/users/{user_id}/admin-settings")
+async def update_user_admin_settings(
+    user_id: str,
+    admin_settings_update: UserAdminUpdate,
+    admin: AdminUser,
+    db: DBSession,
+    user_crud: UserCRUDDep,
+    admin_logger: AdminLoggerDep,
+):
+    """Update admin-specific settings for a user (e.g., whitelisted phone numbers, allowed endpoints)"""
+    user = await user_crud.get_user_by_id(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    update_data = admin_settings_update.model_dump(exclude_unset=True)
+
+    # Prevent a super admin from changing their own super admin status via this endpoint
+    if user.id == admin.id and "is_super_admin" in update_data:
+        raise HTTPException(
+            status_code=403,
+            detail="Super admin cannot change their own super admin status via this endpoint.",
+        )
+
+    # Apply updates
+    for field, value in update_data.items():
+        setattr(user, field, value)
+
+    await db.commit()
+
+    await admin_logger.log_action(
+        db=db,
+        admin_id=admin.id,
+        action_type="update_user_admin_settings",
+        target_resource=f"user:{user_id}",
+        details=update_data,
+    )
+
+    return {
+        "message": "User admin settings updated successfully",
+        "user": user.to_dict(),
+    }
+
+
+@router.get("/users/{user_id}/balance")
+async def get_user_balance(
+    user_id: str,
+    admin: AdminUser,
+    db: DBSession,
+    user_crud: UserCRUDDep,
+):
+    """Get the message credit balance for a specific user."""
+    user = await user_crud.get_user_by_id(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"user_id": user_id, "message_credits": user.message_credits}

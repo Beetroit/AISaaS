@@ -40,9 +40,7 @@ class ChatSession(Base):
     current_workflow_step: Mapped[str | None] = mapped_column(
         String(255), nullable=True
     )
-    lead_collection_state: Mapped[Dict[str, Any] | None] = mapped_column(
-        JSON, nullable=True
-    )
+    lead_collection_state: Mapped[Dict[str, Any]] = mapped_column(JSON, nullable=True)
     lead_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     user: Mapped["User"] = relationship("User", back_populates="chat_sessions")
